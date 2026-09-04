@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN — WebGL recovery QA</title>
+  <style>
+    html, body, iframe {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      overflow: hidden;
+      background: #000;
+    }
+  </style>
+</head>
+<body data-status="loading">
+  <iframe id="prototype" src="../index.html" title="HUMAN UNKNOWN context recovery test"></iframe>
+  <script>
+    const frame = document.getElementById('prototype');
+    const shouldRestore = new URLSearchParams(window.location.search).get('restore') === '1';
+
+    frame.addEventListener('load', () => {
+      window.setTimeout(() => {
+        const canvas = frame.contentDocument.getElementById('nebulaCanvas');
+        const gl = canvas && canvas.getContext('webgl');
+        const extension = gl && gl.getExtension('WEBGL_lose_context');
+
+        if (!extension) {
+          document.body.dataset.status = 'unsupported';
+          return;
+        }
+
+        extension.loseContext();
+        document.body.dataset.status = 'lost';
+
+        if (shouldRestore) {
+          window.setTimeout(() => {
+            extension.restoreContext();
+            document.body.dataset.status = 'restoring';
+          }, 900);
+
+          window.setTimeout(() => {
+            document.body.dataset.status = canvas.dataset.renderer === 'living-nebula'
+              ? 'restored'
+              : 'restore-failed';
+          }, 2400);
+        }
+      }, 1200);
+    });
+  </script>
+</body>
+</html>
