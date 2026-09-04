@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN — focused visual comparison</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1672px; margin: 0; overflow-x: hidden; background: #111; color: #bbb; font: 11px/1 monospace; }
+    figure { width: 1672px; margin: 0 0 2px; }
+    figcaption { height: 22px; display: grid; place-items: center; background: #080808; letter-spacing: .14em; }
+    .crop { position: relative; width: 1672px; overflow: hidden; background: #000; }
+    .crop img { position: absolute; left: 0; width: 1672px; height: 941px; max-width: none; }
+    .title { height: 210px; }
+    .title img { top: -330px; }
+    .guide { height: 191px; }
+    .guide img { top: -750px; }
+  </style>
+</head>
+<body>
+  <figure><figcaption>REFERENCE · TITLE REGION · 1:1</figcaption><div class="crop title"><img src="source-reference.png" alt="Reference title region"></div></figure>
+  <figure><figcaption>PARTICLE IMPLEMENTATION · TITLE REGION · 1:1</figcaption><div class="crop title"><img src="particle-noticed-final.png" alt="Implementation title region"></div></figure>
+  <figure><figcaption>REFERENCE · GUIDE REGION · 1:1</figcaption><div class="crop guide"><img src="source-reference.png" alt="Reference guide region"></div></figure>
+  <figure><figcaption>PARTICLE IMPLEMENTATION · GUIDE REGION · 1:1</figcaption><div class="crop guide"><img src="particle-noticed-final.png" alt="Implementation guide region"></div></figure>
+</body>
+</html>

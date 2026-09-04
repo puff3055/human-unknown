@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN — particle gaze comparison</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #111; color: #bbb; font: 12px/1.2 monospace; }
+    .labels, .frames { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+    .labels div { height: 28px; display: grid; place-items: center; background: #080808; letter-spacing: .12em; }
+    .frames { height: 941px; overflow: hidden; }
+    .frames img { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="labels"><div>GAZE SETTLED · LEFT</div><div>GAZE SETTLED · RIGHT</div></div>
+  <div class="frames">
+    <img src="particle-gaze-left.png" alt="Particle gaze settled left">
+    <img src="particle-gaze-right.png" alt="Particle gaze settled right">
+  </div>
+</body>
+</html>
