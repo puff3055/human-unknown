@@ -1,41 +1,55 @@
-# HUMAN UNKNOWN 首页 V4.2 Design QA
+# HUMAN UNKNOWN 首页 V4.3 纯光光标 Design QA
 
 > 日期：2026-09-06
-> 对象：`codex/homepage-v4-2`／`v4.2.0-rc.1`
-> 结论：**客观测试通过；声音主观验收待用户真实试听。**
+> 对象：`codex/light-cursor-v4-3`／`v4.3.0-rc.1`
+> 本轮范围：只检查自定义光标的视觉、双形态、移动、靠近和被吸收状态
+> 结论：客观忠实度与交互契约通过；页面内主观大小／亮度待用户验收。
 
-## 基准与边界
+## 比较基准
 
-- 视觉母版：`00-项目参考材料/首页素材1.png`（1672×941）。
-- 保留星云连续纹理、球体、瞳孔、凝视、水波和生长／消亡，未改成纯粒子页。
-- 只验证到 `humanunknown:homepage-exit` 黑场，未创建植物世界。
-- `.contact-cursor` 的视觉造型未修改；本轮只新增供独立光标任务读取的倒计时状态。
+- 视觉真值：`qa/v4.3/00-reference-light-states.png`，1689×931，来自用户最终明确选定的纯光参考。
+- 实现全景：`qa/v4.3/01-default-cloud-full.png`、`03-focused-point-full.png`、`04-absorbing-point-full.png`和 `05-absorbed-handoff-full.png`，均为 1440×900、CSS 视口 1440×900、device pixel ratio 1。
+- 聚焦区域：`02-default-cloud-focus.png`、`03-focused-point-focus.png`和 `04-absorbing-point-focus.png`，均从全景证据以实际指针为中心裁切为 140×140；没有使用浏览器框架或额外密度缩放。
+- 同图比较：`qa/v4.3/06-reference-vs-cursor-states.png`，顺序为“参考光团／实现光团／参考光点／实现光点”。参考先归一到实际 72px 光团和 42px 光点，再与实现等比放大，避免把原图的巨大展示尺寸误判为光标尺寸。
+- 状态：默认 `cloud / none`；声音控件 `point / sound`；中央热区 `point / pupil`；坠入中途 `absorbing / entry=0.504`；交付黑场 `handoff / entry=1`。
 
-## 自动契约
+## Findings
 
-- `node qa/homepage-v4-contract-test.mjs`：通过。覆盖三句精确原文与顺序、删除“对，在这里”、标题四秒可读和首次行为门、片名／副标题常驻、加速旁白、最后一句结束前停留不累计、3/2/1 三秒凝视、离开回落、触摸抬起取消、单调坠入、黑场出口和 reduced-motion。
-- `node qa/soundscape-contract-test.mjs`：通过。覆盖默认 `armed`、明示启声提示、一次手势成功、单次唤醒回应、窄带可感底层、noticed 时让位、5–9 秒稀疏压力，并防止旧 noise buffer／`airNoise`／`worldNoise`／compressor 回归。
-- `node --check app.js encounter-machine.js living-nebula.js living-soundscape.js`：通过。
-- `git diff --check`：通过。
+最终轮没有剩余 P0、P1 或 P2 问题。
 
-## 当前内置浏览器证据
+- **字体与排版：通过。**光标不承载文字；本轮没有改动片名、副标题、三句旁白、凝视倒计时或声音提示的字体、字号、字重、行高、字距和抗锯齿。
+- **间距与布局节奏：通过。**光标是固定定位、无指针事件的独立叠加层，不参与页面排版；390×844 视口实测无横向或纵向新增溢出。
+- **颜色与视觉令牌：通过。**两种形态都沿用参考的暖白／象牙白／暗银光，没有加入蓝紫色、高饱和色或 HUD 色。默认光团与页面星云同源，交互光点的局部对比足以标明点击位置。
+- **图像质量与素材忠实度：通过。**光团和光点均直接来自用户选定图像的对应区域，分别保留 320×320 和 192×192 透明 PNG；实现不使用 CSS 绘画、手写 SVG、字符或占位图替代参考素材。最终证据中没有黑底边缘、透明光晕断层或拉伸模糊。
+- **文案与内容：通过。**引导语“放入你的眼睛”保持不变；用户否定的眼睛／瞳孔光标没有以图形、命名或隐喻文字残留在页面中。
+- **状态与可用性：通过。**光芯永远直接使用实际指针坐标，只让外围游丝承担有界惯性；声音按钮和中央外围／核心热区均收束为光点。光标层高于声音控件，但不截获点击。触摸／粗指针媒体查询隐藏自定义光标；`prefers-reduced-motion` 下旋转和速度拖曳为 0。
 
-- 桌面 1440×900：无输入时保持 `opening / title-hold`；片名和副标题均为 `opacity=1`。开始接触、切换旁白、凝视倒计时时仍保持。
-- 旁白：桌面计算位置约 `311px`，片名顶约 `378px`；移动旁白顶约 `270px`，片名顶约 `369px`。两者均在片名上方，且恢复为约 `10–13px` 的克制字号。
-- 行为链：`contact / 在这里 → near / 在这里 → noticed / 它注意到你了 → aligned / 放入你的眼睛`。
-- 硬门：“放入你的眼睛”清晰显示时，鼠标已在 `hotzone=core`，页面仍为 `countdown=waiting`、`hold=0.000`。文字溶出后才进入 `active`并显示数字。
-- 新形态：桌面和移动中，倒计时开始时瞳孔由圆形有机光收窄为非对称垂直孔径，不是按钮、进度条或 HUD。
-- 坠入实测：`--cosmos-scale` 为 `1.0601 → 1.3029 → 2.1611 → 3.5353 → 4.4935`；只向前放大，未出现先缩小再放大。
-- 声音控件：刷新后为 `data-sound-state="armed"`，单次点击后立即为 `on`，可见文字变为“声音已开启”。
-- 移动 390×844：片名和副标题完整在视口内，旁白在上方，最后一句与倒计时不重叠。
-- reduced-motion：`renderer="static-reduced-motion"`、`texture="continuous-static"`，WebGL canvas 停止；标题、旁白阅读门和三秒凝视保留。
-- 完整桌面、移动和 reduced-motion 检查的控制台 warning/error 均为 0，未见明显卡顿。
+## 比较历史
 
-本轮图像与读数索引在 `qa/v4.2/README.md`。`qa/v4.1/` 和 `qa/v4/` 仅属历史版本，未被当作当前证据。
+### 第一轮：blocked
 
-## 待用户验收
+- **[P1] RGB 参考裁图在亮背景上露出黑色方形。**证据为 `qa/v4.3/00-first-pass-black-box.png`。黑底导致光标看起来像贴图，破坏星云的连续性，不能交付。
+- **修正：**从原参考分别重新裁切两个光形，以像素亮度生成 alpha，保留暖色色相和细微游丝；不使用黑底遮罩。同时将光点层级提到声音按钮上方，保证点击位置不被图标遮挡。
 
-- 请用真实耳机和普通扬声器试听：单次启声回应是否足够明确但不突兀；44 Hz／99 Hz 窄带底层是否可感又不像机器持续运转；稀疏压力、移动水感长尾、一次注意张开、边界近静音和下弯坠落是否成立。
-- 自动测试和 AudioContext 的 `running` 状态不能代替主观听感，当前不记为“用户已验收”。
+### 第二轮：passed
 
-final result: objective pass / subjective sound review pending
+- `qa/v4.3/03-focused-point-full.png` 显示光点在高纹理背景上没有方形边缘；`06-reference-vs-cursor-states.png` 显示两种运行尺寸下的光形、色温、集散关系与选定参考一致。
+- `04-absorbing-point-full.png` 与 `05-absorbed-handoff-full.png` 证明光点使用已有坠入进度渐进收缩并消失，没有修改坠入轨迹或黑场交付。
+
+## 自动与浏览器检查
+
+- `qa/light-cursor-contract-test.mjs`：默认光团、缓慢内部流动、速度拖曳、声音／中央交互光点、按压、吸收和 reduced-motion 全部通过。
+- 原有 `qa/homepage-v4-contract-test.mjs` 和 `qa/soundscape-contract-test.mjs` 仍通过，说明开场、旁白、热区、坠入和声音契约未回归。
+- 桌面 1440×900 实测 `cloud → point → absorbing → handoff`；声音控件和中央热区都能触发光点。
+- reduced-motion 实测 600ms 前后光团旋转角都为 `-8deg`，拖曳为 `0px`。
+- 390×844 布局实测没有溢出；实际粗指针隐藏由 CSS 契约覆盖。
+- 最终页面加载、资源尺寸、双形态和交互目标检查后，控制台 warning/error 为 0。
+
+## 实现清单
+
+- [x] 删除旧环形，不使用眼睛或瞳孔光标。
+- [x] 以用户选定参考生成真透明的光团和光点素材。
+- [x] 实现默认、移动、声音交互、中央靠近、按下、吸收和 reduced-motion 状态。
+- [x] 保留 V4.2 开场、常驻片名、三句旁白、三秒凝视、声音、热区与单向坠入契约。
+
+final result: passed

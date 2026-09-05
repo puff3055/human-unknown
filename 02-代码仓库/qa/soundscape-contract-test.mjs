@@ -284,7 +284,7 @@ const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8'
 assert.match(html, /id="soundToggle"/);
 assert.match(html, /id="soundPrompt"/);
 assert.match(html, /data-sound-state="armed"/);
-assert.match(html, /living-soundscape\.js\?v=4\.2\.0-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=4\.3\.0-rc\.1/);
 assert.match(html, /assets\/tabler-volume\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
