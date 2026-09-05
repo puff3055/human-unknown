@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN V3.3 — responsive harness</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; background: #111; color: #bbb; font: 12px/1.2 monospace; }
+    body { display: grid; place-items: start center; overflow: auto; }
+    .stage { position: relative; margin: 24px; transform-origin: top center; box-shadow: 0 0 0 1px #333; }
+    iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+    .label { position: absolute; bottom: 100%; left: 0; width: 100%; padding: 6px; text-align: center; letter-spacing: .12em; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="label" id="label"></div>
+    <iframe id="prototype" src="../../index.html" title="Responsive HUMAN UNKNOWN homepage"></iframe>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const width = Number(params.get('width')) || 390;
+    const height = Number(params.get('height')) || 844;
+    const scale = Number(params.get('scale')) || 0.76;
+    const stage = document.getElementById('stage');
+    stage.style.width = `${width}px`;
+    stage.style.height = `${height}px`;
+    stage.style.transform = `scale(${scale})`;
+    document.getElementById('label').textContent = `${width} × ${height}`;
+  </script>
+</body>
+</html>

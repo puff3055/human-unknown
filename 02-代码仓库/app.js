@@ -3,6 +3,11 @@
 
   const LIFE_EVENT_COUNT = 3;
   const WAVE_COUNT = 3;
+  const LIFE_KIND = Object.freeze({
+    decay: -1,
+    transfer: 0,
+    growth: 1,
+  });
 
   const contact = document.getElementById('contact');
   const nebulaCanvas = document.getElementById('nebulaCanvas');
@@ -98,6 +103,7 @@
     activeCount: 0,
     growthCount: 0,
     decayCount: 0,
+    transferCount: 0,
     lastZoneIndex: -1,
   };
 
@@ -161,6 +167,19 @@
     nebulaCanvas.dataset.renderer = 'fallback';
   }
 
+  function showReducedMotionFallback() {
+    contact.classList.add('no-webgl');
+    nebulaCanvas.dataset.renderer = 'static-reduced-motion';
+    nebulaCanvas.dataset.texture = 'continuous-static';
+    initializeMetabolism(performance.now());
+
+    if (nebulaFallback.complete) {
+      requestAnimationFrame(reveal);
+    } else {
+      nebulaFallback.addEventListener('load', reveal, { once: true });
+    }
+  }
+
   function recoverNebula() {
     const interruptedNebula = nebula;
     nebula = null;
@@ -169,6 +188,11 @@
   }
 
   async function bootNebula() {
+    if (reduceMotion) {
+      showReducedMotionFallback();
+      return;
+    }
+
     try {
       if (!window.LivingNebula) throw new Error('Living nebula renderer is unavailable');
       nebula = new window.LivingNebula(nebulaCanvas, {
@@ -285,20 +309,24 @@
     setGuide('再靠近一点。');
   }
 
-  function pickLifeZone(now) {
+  function pickLifeZone(now, excludedIndexes = []) {
     const cooledZones = LIFE_ZONES
       .map((zone, index) => ({ zone, index }))
       .filter(({ zone, index }) => (
         index !== metabolism.lastZoneIndex
-        && now - zone.lastUsedAt > 20000
+        && !excludedIndexes.includes(index)
+        && now - zone.lastUsedAt > 12500
       ));
     const pool = cooledZones.length > 0
       ? cooledZones
       : LIFE_ZONES
         .map((zone, index) => ({ zone, index }))
-        .filter(({ index }) => index !== metabolism.lastZoneIndex)
+        .filter(({ index }) => (
+          index !== metabolism.lastZoneIndex
+          && !excludedIndexes.includes(index)
+        ))
         .sort((a, b) => a.zone.lastUsedAt - b.zone.lastUsedAt)
-        .slice(0, 3);
+        .slice(0, 4);
     const selection = pool[Math.floor(Math.random() * pool.length)] || {
       zone: LIFE_ZONES[0],
       index: 0,
@@ -308,40 +336,132 @@
     return selection;
   }
 
-  function createLifeEvent(slot, now, kind, delay = 0, durationOverride = 0) {
-    const { zone, index } = pickLifeZone(now + delay);
+  function createLifeEvent(
+    slot,
+    now,
+    kind,
+    delay = 0,
+    durationOverride = 0,
+    sourceEvent = null,
+    targetEvent = null
+  ) {
+    const isTransfer = kind === LIFE_KIND.transfer;
+    const excludedIndexes = metabolism.events
+      .filter(Boolean)
+      .map((event) => event.zoneIndex)
+      .filter((index) => index >= 0);
+    const selection = isTransfer && sourceEvent
+      ? {
+        zone: {
+          x: sourceEvent.x,
+          y: sourceEvent.y,
+          directionX: sourceEvent.directionX,
+          directionY: sourceEvent.directionY,
+        },
+        index: sourceEvent.zoneIndex,
+      }
+      : pickLifeZone(now + delay, excludedIndexes);
+    const { zone, index } = selection;
     const jitter = randomBetween(-0.20, 0.20);
-    const direction = normalizeDirection(
-      zone.directionX - zone.directionY * jitter,
-      zone.directionY + zone.directionX * jitter,
-      zone.directionX,
-      zone.directionY
+    const transferTarget = targetEvent || metabolism.events[0];
+    const transferDeltaX = transferTarget
+      ? (transferTarget.x - zone.x) * window.innerWidth / Math.max(1, window.innerHeight)
+      : zone.directionX;
+    const transferDeltaY = transferTarget
+      ? transferTarget.y - zone.y
+      : zone.directionY;
+    const transferDistance = Math.hypot(transferDeltaX, transferDeltaY);
+    const direction = isTransfer && transferTarget
+      ? normalizeDirection(
+        transferDeltaX,
+        transferDeltaY,
+        zone.directionX,
+        zone.directionY
+      )
+      : normalizeDirection(
+        zone.directionX - zone.directionY * jitter,
+        zone.directionY + zone.directionX * jitter,
+        zone.directionX,
+        zone.directionY
+      );
+    const duration = durationOverride || (
+      kind === LIFE_KIND.growth
+        ? randomBetween(4700, 6400)
+        : kind === LIFE_KIND.decay
+          ? randomBetween(5200, 7000)
+          : randomBetween(3900, 5200)
     );
-    const duration = durationOverride || (kind > 0
-      ? randomBetween(4300, 6500)
-      : randomBetween(5200, 7800));
 
     metabolism.events[slot] = {
       slot,
       zoneIndex: index,
-      x: zone.x + randomBetween(-0.035, 0.035),
-      y: zone.y + randomBetween(-0.030, 0.030),
+      x: zone.x + (isTransfer ? 0 : randomBetween(-0.030, 0.030)),
+      y: zone.y + (isTransfer ? 0 : randomBetween(-0.026, 0.026)),
       directionX: direction.x,
       directionY: direction.y,
       kind,
-      energy: randomBetween(0.78, 1.0),
-      seed: randomBetween(0.05, 0.95),
+      energy: kind === LIFE_KIND.transfer
+        ? randomBetween(0.88, 1.0)
+        : randomBetween(0.90, 1.0),
+      seed: isTransfer
+        ? clamp(transferDistance, 0.48, 1.45)
+        : randomBetween(0.05, 0.95),
       startedAt: now + delay,
       duration,
       signalled: false,
+      touchedAt: -Infinity,
     };
   }
 
   function initializeMetabolism(now) {
     metabolism.startedAt = now;
-    createLifeEvent(0, now, 1, 350, 5200);
-    createLifeEvent(1, now, -1, 800, 6600);
-    createLifeEvent(2, now, 1, 2450, 5800);
+    createLifeEvent(0, now, LIFE_KIND.growth, -950, 5600);
+    createLifeEvent(1, now, LIFE_KIND.decay, -1750, 6500);
+    createLifeEvent(
+      2,
+      now,
+      LIFE_KIND.transfer,
+      650,
+      4500,
+      metabolism.events[1],
+      metabolism.events[0]
+    );
+  }
+
+  function advectLifeEvents(deltaX, deltaY, clientX, clientY, now) {
+    const movement = normalizeDirection(deltaX, deltaY, pointer.directionX, pointer.directionY);
+
+    metabolism.events.forEach((event) => {
+      if (!event) return;
+      const progress = (now - event.startedAt) / event.duration;
+      if (progress < 0 || progress > 0.94) return;
+
+      const position = getEventScreenPosition(event);
+      const distance = Math.hypot(clientX - position.x, clientY - position.y);
+      const influence = 1 - smoothstep(110, 310, distance);
+      if (influence <= 0) return;
+
+      const response = event.kind === LIFE_KIND.transfer ? 0.20 : 0.10;
+      event.x = clamp(
+        event.x + (deltaX / Math.max(1, window.innerWidth)) * response * influence,
+        -0.78,
+        0.78
+      );
+      event.y = clamp(
+        event.y + (deltaY / Math.max(1, window.innerHeight)) * response * influence,
+        -0.76,
+        0.76
+      );
+      const blendedDirection = normalizeDirection(
+        event.directionX * (1 - 0.12 * influence) + movement.x * 0.12 * influence,
+        event.directionY * (1 - 0.12 * influence) + movement.y * 0.12 * influence,
+        event.directionX,
+        event.directionY
+      );
+      event.directionX = blendedDirection.x;
+      event.directionY = blendedDirection.y;
+      event.touchedAt = now;
+    });
   }
 
   function getEventScreenPosition(event) {
@@ -472,6 +592,7 @@
 
     if (distance > 1.5) {
       advectExistingWaves(deltaX, deltaY, clientX, clientY);
+      advectLifeEvents(deltaX, deltaY, clientX, clientY, now);
       pointer.lastMovedAt = now;
       pointer.stopWaveArmed = eventSpeed > 65;
       pointer.directionX = nextDirection.x;
@@ -807,21 +928,38 @@
     metabolism.activeCount = 0;
     metabolism.growthCount = 0;
     metabolism.decayCount = 0;
+    metabolism.transferCount = 0;
 
     metabolism.events.forEach((event, slot) => {
       if (!event) return;
       let progress = (now - event.startedAt) / event.duration;
 
-      if (progress >= 1.035) {
-        const nextKind = event.kind > 0 ? -1 : 1;
-        createLifeEvent(slot, now, nextKind, randomBetween(850, 3600));
-        return;
+      if (progress >= 1) {
+        const delay = event.kind === LIFE_KIND.transfer
+          ? randomBetween(240, 620)
+          : 0;
+        createLifeEvent(
+          slot,
+          now,
+          event.kind,
+          delay,
+          0,
+          event.kind === LIFE_KIND.transfer ? metabolism.events[1] : null,
+          event.kind === LIFE_KIND.transfer ? metabolism.events[0] : null
+        );
+        event = metabolism.events[slot];
+        progress = (now - event.startedAt) / event.duration;
       }
 
       const offset = slot * 4;
       const active = progress >= 0 && progress <= 1;
       progress = clamp(progress, 0, 1);
-      const energy = active && !reduceMotion ? event.energy : 0;
+      const touchBoost = Number.isFinite(event.touchedAt)
+        ? 1 + 0.22 * (1 - smoothstep(0, 1450, now - event.touchedAt))
+        : 1;
+      const energy = active && !reduceMotion
+        ? clamp(event.energy * touchBoost, 0, 1.18)
+        : 0;
 
       metabolism.lifeA[offset] = event.x;
       metabolism.lifeA[offset + 1] = event.y;
@@ -834,8 +972,9 @@
 
       if (!active) return;
       metabolism.activeCount += 1;
-      if (event.kind > 0) metabolism.growthCount += 1;
-      else metabolism.decayCount += 1;
+      if (event.kind === LIFE_KIND.growth) metabolism.growthCount += 1;
+      else if (event.kind === LIFE_KIND.decay) metabolism.decayCount += 1;
+      else metabolism.transferCount += 1;
 
       if (
         pointer.hasMoved
@@ -853,7 +992,11 @@
             directionY: event.directionY,
             energy: 0.48 + event.energy * 0.22,
             now,
-            kind: event.kind > 0 ? 'growth-transfer' : 'decay-transfer',
+            kind: event.kind === LIFE_KIND.growth
+              ? 'growth-transfer'
+              : event.kind === LIFE_KIND.decay
+                ? 'decay-transfer'
+                : 'metabolic-transfer',
             duration: randomBetween(3600, 5400),
             reach: randomBetween(270, 390),
           });
@@ -918,6 +1061,18 @@
     nebulaCanvas.dataset.metabolism = String(metabolism.activeCount);
     nebulaCanvas.dataset.growth = String(metabolism.growthCount);
     nebulaCanvas.dataset.decay = String(metabolism.decayCount);
+    nebulaCanvas.dataset.transfer = String(metabolism.transferCount);
+    metabolism.events.forEach((event) => {
+      if (!event) return;
+      const eventProgress = clamp((now - event.startedAt) / event.duration, 0, 1).toFixed(3);
+      if (event.kind === LIFE_KIND.growth) {
+        nebulaCanvas.dataset.growthProgress = eventProgress;
+      } else if (event.kind === LIFE_KIND.decay) {
+        nebulaCanvas.dataset.decayProgress = eventProgress;
+      } else {
+        nebulaCanvas.dataset.transferProgress = eventProgress;
+      }
+    });
     nebulaCanvas.dataset.awakening = 'metabolic';
     nebulaCanvas.dataset.awaken = '0.000';
     nebulaCanvas.dataset.uptime = (now / 1000).toFixed(2);
@@ -956,8 +1111,8 @@
         waveA: waves.waveA,
         waveB: waves.waveB,
       });
-      updateTelemetry(now, signalProgress);
     }
+    updateTelemetry(now, signalProgress);
 
     frameWindowCount += 1;
     if (now - frameWindowStartedAt >= 1000) {
@@ -982,8 +1137,13 @@
         active: metabolism.activeCount,
         growth: metabolism.growthCount,
         decay: metabolism.decayCount,
+        transfer: metabolism.transferCount,
         events: metabolism.events.map((event) => event ? ({
-          kind: event.kind > 0 ? 'growth' : 'decay',
+          kind: event.kind === LIFE_KIND.growth
+            ? 'growth'
+            : event.kind === LIFE_KIND.decay
+              ? 'decay'
+              : 'transfer',
           zoneIndex: event.zoneIndex,
           startedAt: event.startedAt,
           duration: event.duration,

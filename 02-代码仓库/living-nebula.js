@@ -143,8 +143,12 @@
 
       // Several asynchronous life events move energy through selected texture zones.
       float lifeGrowth = 0.0;
+      float lifeGrowthTip = 0.0;
       float lifeDecay = 0.0;
+      float lifeDecayEdge = 0.0;
       float lifeResidue = 0.0;
+      float lifeTransfer = 0.0;
+      float lifeTransferTrail = 0.0;
       vec2 lifeDeformation = vec2(0.0);
 
       for (int i = 0; i < 3; i++) {
@@ -152,54 +156,177 @@
         vec4 lifeB = uLifeB[i];
         float lifeProgress = clamp(lifeA.z, 0.0, 1.0);
         float lifeEnergy = lifeB.z;
-        float growthKind = step(0.0, lifeA.w);
-        float decayKind = 1.0 - growthKind;
+        float growthKind = step(0.5, lifeA.w);
+        float decayKind = 1.0 - step(-0.5, lifeA.w);
+        float transferKind = max(0.0, 1.0 - growthKind - decayKind);
         vec2 lifeOrigin = vec2(lifeA.x * screenAspect, -lifeA.y);
         vec2 lifeDirection = normalize(vec2(lifeB.x, -lifeB.y) + vec2(0.00001));
         vec2 lifeNormal = vec2(-lifeDirection.y, lifeDirection.x);
         vec2 lifeDelta = metric - lifeOrigin;
         float lifeAlong = dot(lifeDelta, lifeDirection);
         float lifeAcross = dot(lifeDelta, lifeNormal);
-        float lifeTravel = mix(-0.075, 0.115, smoothstep(0.05, 0.70, lifeProgress));
-        float lifeLength = mix(0.21, 0.34, growthKind);
-        float lifeWidth = mix(0.16, 0.125, growthKind);
-        float lifeShape = length(vec2(
-          (lifeAlong - lifeTravel) / lifeLength,
-          lifeAcross / lifeWidth
-        ));
-        float lifeBody = 1.0 - smoothstep(0.34, 1.0, lifeShape);
+        float seedPhase = fract(
+          lifeB.w * 1.731
+          + lifeA.x * 4.13
+          + lifeA.y * 7.17
+        );
         float branchTexture = 0.54
-          + sin(lifeAcross * 61.0 + lifeAlong * 17.0 + lifeB.w * 18.0) * 0.43;
+          + sin(lifeAcross * 58.0 + lifeAlong * 19.0 + seedPhase * 18.0) * 0.43;
         float branchGate = smoothstep(0.22, 0.76, branchTexture);
-        float lifeAttack = smoothstep(0.0, 0.10, lifeProgress);
-        float lifeRelease = 1.0 - smoothstep(0.72, 1.0, lifeProgress);
+        float lifeAttack = smoothstep(0.0, 0.055, lifeProgress);
+        float lifeRelease = 1.0 - smoothstep(0.84, 1.0, lifeProgress);
         float lifeEnvelope = lifeAttack * lifeRelease * lifeEnergy;
-        float structuredLife = lifeBody * (0.38 + branchGate * 0.62) * lifeEnvelope;
-        float breakup = smoothstep(0.42, 0.92, lifeProgress);
-        float brokenLife = lifeBody
-          * mix(0.72, branchGate, breakup)
-          * lifeEnvelope;
 
-        lifeGrowth += structuredLife * growthKind;
-        lifeDecay += brokenLife * decayKind;
-        lifeResidue += lifeBody
-          * decayKind
-          * smoothstep(0.38, 0.88, lifeProgress)
-          * lifeRelease
-          * lifeEnergy;
+        // Growth has a visible advancing tip, a widening body, and a late split.
+        float growthEase = smoothstep(0.02, 0.82, lifeProgress);
+        float growthReach = mix(-0.10, 0.29, growthEase);
+        float growthWidth = mix(0.070, 0.135, smoothstep(0.12, 0.75, lifeProgress));
+        float growthLengthGate = smoothstep(-0.13, -0.035, lifeAlong)
+          * (1.0 - smoothstep(growthReach - 0.040, growthReach + 0.030, lifeAlong));
+        float growthAcrossGate = 1.0 - smoothstep(
+          growthWidth * 0.24,
+          growthWidth,
+          abs(lifeAcross)
+        );
+        float growthBody = growthLengthGate
+          * growthAcrossGate
+          * (0.42 + branchGate * 0.58);
+        float growthTipShape = length(vec2(
+          (lifeAlong - growthReach) / 0.064,
+          lifeAcross / max(0.025, growthWidth * 0.82)
+        ));
+        float growthTip = 1.0 - smoothstep(0.16, 1.0, growthTipShape);
+        float branchSign = mix(-1.0, 1.0, step(0.5, seedPhase));
+        float splitAmount = smoothstep(0.28, 0.76, lifeProgress) * 0.060;
+        float growthBranchShape = length(vec2(
+          (lifeAlong - growthReach * 0.88) / 0.078,
+          (lifeAcross - branchSign * splitAmount) / 0.058
+        ));
+        float growthBranchTip = (1.0 - smoothstep(0.18, 1.0, growthBranchShape))
+          * smoothstep(0.24, 0.56, lifeProgress);
+        float growthField = max(
+          growthBody,
+          max(growthTip, growthBranchTip * 0.78)
+        ) * lifeEnvelope * growthKind;
+
+        lifeGrowth += growthField;
+        lifeGrowthTip += max(growthTip, growthBranchTip)
+          * lifeEnvelope
+          * growthKind;
         lifeDeformation += lifeDirection
-          * structuredLife
-          * growthKind
-          * 0.030;
+          * (growthBody * 0.020 + growthTip * 0.054 + growthBranchTip * 0.038)
+          * lifeEnvelope
+          * growthKind;
         lifeDeformation += lifeNormal
-          * sin(lifeAlong * 37.0 - lifeAcross * 23.0 + lifeB.w * 11.0)
-          * brokenLife
+          * sin(lifeAlong * 33.0 - lifeAcross * 19.0 + seedPhase * 11.0)
+          * (growthBody * 0.012 + growthBranchTip * 0.021)
+          * lifeEnvelope
+          * growthKind;
+
+        // Decay visibly retreats, fractures, and leaves a soft residue behind.
+        float decayEase = smoothstep(0.04, 0.88, lifeProgress);
+        float decayReach = mix(0.27, -0.08, decayEase);
+        float decayWidth = mix(0.145, 0.085, decayEase);
+        float decayLengthGate = smoothstep(-0.13, -0.035, lifeAlong)
+          * (1.0 - smoothstep(decayReach - 0.040, decayReach + 0.035, lifeAlong));
+        float decayAcrossGate = 1.0 - smoothstep(
+          decayWidth * 0.22,
+          decayWidth,
+          abs(lifeAcross)
+        );
+        float breakup = smoothstep(0.24, 0.90, lifeProgress);
+        float decayFragments = mix(
+          1.0,
+          smoothstep(0.30, 0.73, branchTexture),
+          breakup
+        );
+        float decayBody = decayLengthGate
+          * decayAcrossGate
+          * decayFragments;
+        float decayFrontShape = length(vec2(
+          (lifeAlong - decayReach) / 0.074,
+          lifeAcross / max(0.025, decayWidth * 0.92)
+        ));
+        float decayFront = (1.0 - smoothstep(0.18, 1.0, decayFrontShape))
+          * decayFragments;
+        float decayField = max(decayBody, decayFront * 0.88)
+          * lifeEnvelope
+          * decayKind;
+        float residueShape = 1.0 - smoothstep(
+          0.34,
+          1.0,
+          length(vec2((lifeAlong - 0.03) / 0.30, lifeAcross / 0.19))
+        );
+
+        lifeDecay += decayField;
+        lifeDecayEdge += decayFront
+          * (0.36 + decayFragments * 0.64)
+          * lifeEnvelope
+          * decayKind;
+        lifeResidue += residueShape
+          * (0.38 + branchGate * 0.62)
+          * smoothstep(0.22, 0.58, lifeProgress)
+          * lifeRelease
+          * lifeEnergy
           * decayKind
-          * 0.018;
+          * 0.82;
         lifeDeformation -= lifeDirection
-          * brokenLife
-          * decayKind
-          * 0.009;
+          * (decayBody * 0.020 + decayFront * 0.040)
+          * lifeEnvelope
+          * decayKind;
+        lifeDeformation += lifeNormal
+          * sin(lifeAlong * 38.0 - lifeAcross * 27.0 + seedPhase * 13.0)
+          * decayField
+          * 0.023;
+
+        // The third channel carries residue from the decaying zone toward growth.
+        float transferReach = clamp(lifeB.w, 0.48, 1.45);
+        float transferEase = 1.0 - pow(
+          1.0 - smoothstep(0.02, 0.92, lifeProgress),
+          2.0
+        );
+        float transferTravel = mix(-0.055, transferReach, transferEase);
+        float transferWidth = mix(0.078, 0.128, lifeProgress);
+        float transferHeadShape = length(vec2(
+          (lifeAlong - transferTravel) / 0.078,
+          lifeAcross / transferWidth
+        ));
+        float transferHead = 1.0 - smoothstep(0.16, 1.0, transferHeadShape);
+        float transferTailLength = mix(0.12, 0.34, lifeProgress);
+        float transferTail = smoothstep(
+          transferTravel - transferTailLength,
+          transferTravel - 0.035,
+          lifeAlong
+        ) * (1.0 - smoothstep(
+          transferTravel - 0.020,
+          transferTravel + 0.025,
+          lifeAlong
+        ));
+        transferTail *= 1.0 - smoothstep(
+          transferWidth * 0.18,
+          transferWidth * 1.18,
+          abs(lifeAcross)
+        );
+        transferTail *= 0.34 + branchGate * 0.66;
+        float transferField = (transferHead * 0.94 + transferTail * 0.72)
+          * lifeEnvelope
+          * transferKind;
+
+        lifeTransfer += transferField;
+        lifeTransferTrail += transferTail
+          * lifeEnvelope
+          * transferKind;
+        lifeDeformation += lifeDirection
+          * transferHead
+          * lifeEnvelope
+          * transferKind
+          * 0.039;
+        lifeDeformation += lifeNormal
+          * sin(lifeAlong * 29.0 + seedPhase * 16.0)
+          * transferTail
+          * lifeEnvelope
+          * transferKind
+          * 0.014;
       }
 
       deformation += lifeDeformation
@@ -383,21 +510,42 @@
       float signalTexture = smoothstep(0.035, 0.36, softLight + filamentRidge * 2.1);
       float growthTexture = lifeGrowth
         * signalTexture
-        * (0.42 + filamentRidge * 3.2);
+        * (0.50 + filamentRidge * 4.0);
+      float growthTipTexture = lifeGrowthTip
+        * smoothstep(0.022, 0.31, softLight + filamentRidge * 2.6);
       float decayTexture = lifeDecay
         * signalTexture
-        * (0.48 + veil * 2.4);
+        * (0.56 + veil * 3.0);
+      float decayEdgeTexture = lifeDecayEdge
+        * smoothstep(0.020, 0.31, softLight + filamentRidge * 2.1);
       float residueTexture = lifeResidue
         * smoothstep(0.018, 0.30, softLight + filamentRidge * 1.4);
-      float fogAmount = clamp(decayTexture * 0.31 + residueTexture * 0.22, 0.0, 0.40);
+      float transferTexture = lifeTransfer
+        * signalTexture
+        * (0.48 + filamentRidge * 3.6);
+      float transferTrailTexture = lifeTransferTrail
+        * smoothstep(0.018, 0.28, softLight + filamentRidge * 1.7);
+      float fogAmount = clamp(
+        decayTexture * 0.39 + residueTexture * 0.27,
+        0.0,
+        0.48
+      );
       color = mix(color, soft, fogAmount);
       color *= 1.0
-        + growthTexture * 0.36
-        - decayTexture * 0.24
-        - residueTexture * 0.075;
+        + growthTexture * 0.58
+        + growthTipTexture * 0.16
+        - decayTexture * 0.34
+        - residueTexture * 0.11
+        - transferTrailTexture * 0.045;
       color += vec3(0.58, 0.63, 0.70)
         * filamentRidge
-        * (0.10 + growthTexture * 0.56);
+        * (0.10 + growthTexture * 0.82 + growthTipTexture * 0.38);
+      color += vec3(0.42, 0.47, 0.52)
+        * decayEdgeTexture
+        * 0.20;
+      color += vec3(0.52, 0.59, 0.67)
+        * transferTexture
+        * 0.48;
 
       float diffusionGlow = waveFrontAccum * signalTexture;
       float diffusionShadow = waveShadowAccum * signalTexture;
