@@ -134,6 +134,7 @@ function createClassList() {
 
 const icon = { src: '', draggable: false };
 const status = { textContent: '' };
+const prompt = { textContent: '', classList: createClassList() };
 const listeners = new Map();
 const attributes = new Map();
 const styles = new Map();
@@ -154,7 +155,11 @@ const storage = new Map();
 const documentListeners = new Map();
 const fakeDocument = {
   hidden: false,
-  getElementById: (id) => id === 'soundStatus' ? status : null,
+  getElementById: (id) => {
+    if (id === 'soundStatus') return status;
+    if (id === 'soundPrompt') return prompt;
+    return null;
+  },
   addEventListener: (type, listener) => documentListeners.set(type, listener),
   removeEventListener: (type) => documentListeners.delete(type),
 };
@@ -183,10 +188,12 @@ vm.runInNewContext(source, {
 });
 
 const soundscape = new fakeWindow.LivingSoundscape(toggle);
-assert.equal(toggle.dataset.soundState, 'off');
-assert.equal(attributes.get('aria-pressed'), 'false');
+assert.equal(toggle.dataset.soundState, 'armed');
+assert.equal(attributes.get('aria-pressed'), 'true');
 assert.equal(attributes.get('aria-busy'), 'false');
-assert.match(icon.src, /volume-off\.svg$/);
+assert.match(icon.src, /volume\.svg$/);
+assert.equal(prompt.textContent, '轻触开启声音');
+assert.equal(prompt.classList.contains('is-visible'), true);
 
 await listeners.get('click')({ preventDefault() {}, stopPropagation() {} });
 assert.equal(toggle.dataset.soundState, 'on');
@@ -194,6 +201,12 @@ assert.equal(attributes.get('aria-pressed'), 'true');
 assert.equal(attributes.get('aria-busy'), 'false');
 assert.match(icon.src, /volume\.svg$/);
 assert.equal(soundscape.getState().contextState, 'running');
+assert.equal(prompt.textContent, '声音已开启');
+assert.equal(
+  soundscape.activeEvents.filter((event) => event.kind === 'enable').length,
+  1,
+  'one valid gesture emits exactly one audible enable confirmation'
+);
 
 const now = performance.now();
 const state = {
@@ -233,13 +246,27 @@ for (let index = 0; index < 8; index += 1) {
 }
 const activeState = soundscape.getState();
 assert.ok(activeState.telemetry.level > 0);
-assert.equal(activeState.architecture, 'sparse-oscillator-events');
+assert.equal(activeState.architecture, 'sparse-low-frequency-presence');
+assert.ok(activeState.telemetry.presence > 0 && activeState.telemetry.presence < 0.003);
 assert.ok(activeState.telemetry.movement > 0);
 assert.ok(activeState.telemetry.focus > 0.6);
 assert.ok(activeState.telemetry.events > 0, 'notice is emitted as a bounded event');
 assert.ok(soundscape.nodes.movementFilter.frequency.value < 260);
 assert.ok(soundscape.nodes.focusFilter.frequency.value < 680);
+assert.ok(soundscape.nodes.presenceGain.gain.value < 0.003, 'the presence floor yields to notice');
+assert.ok(soundscape.nodes.presenceUpper.frequency.value >= 90);
 assert.ok(Number(toggle.dataset.soundLevel) > 0);
+assert.ok(Number(toggle.dataset.presenceLevel) < 0.003);
+
+soundscape.duckUntil = 0;
+for (let index = 0; index < 8; index += 1) {
+  soundscape.lastControlAt = 0;
+  soundscape.update(state, 1 / 60);
+}
+const recoveredPresence = soundscape.getState().telemetry.presence;
+assert.ok(recoveredPresence >= 0.006, 'the audible narrow-band floor returns after notice');
+assert.ok(soundscape.nodes.presenceGain.gain.value >= 0.006);
+assert.ok(Number(toggle.dataset.presenceLevel) >= 0.006);
 
 await documentListeners.get('keydown')({
   key: 'm',
@@ -255,8 +282,10 @@ assert.equal(storage.get('human-unknown:sound-enabled'), 'off');
 
 const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(html, /id="soundToggle"/);
-assert.match(html, /living-soundscape\.js\?v=4\.0\.0-rc\.1/);
-assert.match(html, /assets\/tabler-volume-off\.svg/);
+assert.match(html, /id="soundPrompt"/);
+assert.match(html, /data-sound-state="armed"/);
+assert.match(html, /living-soundscape\.js\?v=4\.1\.0-rc\.1/);
+assert.match(html, /assets\/tabler-volume\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
 assert.match(appSource, /soundscape\.update\(\{/);
@@ -267,6 +296,10 @@ assert.doesNotMatch(source, /createNoiseBuffer|createBufferSource|airNoise|world
 assert.doesNotMatch(source, /2240|3900|DynamicsCompressor|metabolismBus/);
 assert.match(source, /randomBetween\(36\.5, 52\.5\)/);
 assert.match(source, /base \* ratio/);
+assert.match(source, /safeStoredPreference\(\) !== 'off'/);
+assert.match(source, /randomBetween\(5000, 9000\)/);
+assert.match(source, /triggerEnableCue\(\)/);
+assert.match(source, /soundState === 'starting'/);
 
 await soundscape.setEnabled(true);
 soundscape.destroy();
@@ -276,13 +309,12 @@ assert.equal(toggle.dataset.soundState, 'armed');
 assert.equal(attributes.get('aria-pressed'), 'true');
 await documentListeners.get('keydown')({
   key: 'a',
+  repeat: false,
   altKey: false,
   ctrlKey: false,
   metaKey: false,
   preventDefault() {},
 });
-assert.equal(toggle.dataset.soundState, 'armed');
-await listeners.get('click')({ preventDefault() {}, stopPropagation() {} });
 assert.equal(toggle.dataset.soundState, 'on');
 assert.equal(restoredSoundscape.getState().contextState, 'running');
 restoredSoundscape.destroy();

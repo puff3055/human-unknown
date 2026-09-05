@@ -7,7 +7,7 @@
   <meta name="description" content="HUMAN UNKNOWN — 人类的世界，只是世界的一种解释。">
   <title>HUMAN UNKNOWN</title>
   <link rel="preload" as="image" href="assets/home-contact-background.png">
-  <link rel="stylesheet" href="style.css?v=4.0.0-rc.1">
+  <link rel="stylesheet" href="style.css?v=4.1.0-rc.1">
 </head>
 <body>
   <main
@@ -38,20 +38,21 @@
       class="sound-toggle"
       id="soundToggle"
       type="button"
-      aria-label="开启声音"
-      aria-pressed="false"
-      data-sound-state="off"
+      aria-label="轻触开启声音"
+      aria-pressed="true"
+      data-sound-state="armed"
     >
       <img
         id="soundIcon"
-        src="assets/tabler-volume-off.svg"
+        src="assets/tabler-volume.svg"
         alt=""
         width="24"
         height="24"
         draggable="false"
       >
     </button>
-    <span class="visually-hidden" id="soundStatus" aria-live="polite">声音已关闭</span>
+    <span class="sound-prompt is-visible" id="soundPrompt" aria-hidden="true">轻触开启声音</span>
+    <span class="visually-hidden" id="soundStatus" aria-live="polite">声音等待触碰开启</span>
     <span class="visually-hidden" id="contactInstructions">
       移动并在中央停留来完成接触。使用键盘时，按住回车键或空格键。
     </span>
@@ -71,9 +72,9 @@
   </main>
 
   <noscript>请启用 JavaScript，完成这次接触。</noscript>
-  <script src="encounter-machine.js?v=4.0.0-rc.1"></script>
-  <script src="living-nebula.js?v=4.0.0-rc.1"></script>
-  <script src="living-soundscape.js?v=4.0.0-rc.1"></script>
-  <script src="app.js?v=4.0.0-rc.1"></script>
+  <script src="encounter-machine.js?v=4.1.0-rc.1"></script>
+  <script src="living-nebula.js?v=4.1.0-rc.1"></script>
+  <script src="living-soundscape.js?v=4.1.0-rc.1"></script>
+  <script src="app.js?v=4.1.0-rc.1"></script>
 </body>
 </html>

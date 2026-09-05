@@ -21,17 +21,20 @@
     titleInMs: 1500,
     titleMinReadMs: 4000,
     titleDissolveMs: 2400,
-    guideSwapMs: 500,
-    contactReadMs: 2200,
-    nearReadMs: 2300,
-    noticedReadMs: 2500,
+    guideSwapMs: 650,
+    guideEnterMs: 800,
+    contactReadMs: 3200,
+    nearReadMs: 3200,
+    noticedReadMs: 3600,
+    alignedReadMs: 3200,
     noticeDwellMs: 420,
     coreDwellMs: 520,
     holdMs: 1400,
     holdReleaseMs: 950,
-    entryMs: 4100,
-    boundaryStartMs: 900,
-    boundaryEndMs: 1120,
+    entryMs: 4200,
+    entryPauseMs: 420,
+    boundaryStartMs: 3800,
+    boundaryEndMs: 4000,
   });
 
   const REDUCED_TIMING = Object.freeze({
@@ -40,11 +43,14 @@
     revealMs: 320,
     titleInMs: 120,
     titleDissolveMs: 80,
+    guideSwapMs: 60,
+    guideEnterMs: 40,
     noticeDwellMs: 160,
     coreDwellMs: 180,
     entryMs: 800,
-    boundaryStartMs: 200,
-    boundaryEndMs: 400,
+    entryPauseMs: 80,
+    boundaryStartMs: 400,
+    boundaryEndMs: 600,
   });
 
   function clamp(value, min, max) {
@@ -86,6 +92,7 @@
       this.coreDwell = 0;
       this.hold = 0;
       this.entry = 0;
+      this.zoom = 0;
       this.collapse = 0;
       this.boundarySilence = 0;
       this.fall = 0;
@@ -111,7 +118,9 @@
       this.phase = nextPhase;
       this.phaseSince = now;
       this.guide = PHASE_COPY[nextPhase] || this.guide;
-      this.guideReadableAt = now + (hadGuide ? this.timing.guideSwapMs : 0);
+      this.guideReadableAt = now
+        + (hadGuide ? this.timing.guideSwapMs : 0)
+        + this.timing.guideEnterMs;
 
       if (nextPhase === 'noticed') this.noticeSerial += 1;
       if (nextPhase === 'entering') {
@@ -220,7 +229,7 @@
         this.hold = clamp(this.hold + holdDelta, 0, 1);
         if (
           this.hold >= 1
-          && readableFor >= this.timing.holdMs
+          && readableFor >= this.timing.alignedReadMs
         ) this.transition('entering', now);
       }
     }
@@ -229,24 +238,26 @@
       if (this.phase !== 'entering' || this.entryStartedAt === null) return;
       const elapsed = now - this.entryStartedAt;
       this.entry = clamp(elapsed / this.timing.entryMs, 0, 1);
-      this.collapse = smoothstep(0, this.timing.boundaryStartMs, elapsed);
+      this.zoom = smoothstep(
+        this.timing.entryPauseMs,
+        this.timing.entryMs - 120,
+        elapsed
+      );
+      this.collapse = this.zoom;
       this.boundarySilence = smoothstep(
-        this.timing.boundaryStartMs - 90,
         this.timing.boundaryStartMs,
+        this.timing.boundaryStartMs + 35,
         elapsed
       ) * (1 - smoothstep(
         this.timing.boundaryEndMs,
-        this.timing.boundaryEndMs + 100,
+        this.timing.boundaryEndMs + 35,
         elapsed
       ));
-      this.fall = smoothstep(
-        this.timing.boundaryEndMs,
-        this.timing.entryMs - 180,
-        elapsed
-      );
+      this.fall = this.zoom;
 
       if (this.entry >= 1) {
         this.entry = 1;
+        this.zoom = 1;
         this.collapse = 1;
         this.boundarySilence = 0;
         this.fall = 1;
@@ -292,6 +303,7 @@
         hold: this.hold,
         holdMs: this.timing.holdMs,
         entry: this.entry,
+        zoom: this.zoom,
         entryDurationMs: this.timing.entryMs,
         collapse: this.collapse,
         boundarySilence: this.boundarySilence,

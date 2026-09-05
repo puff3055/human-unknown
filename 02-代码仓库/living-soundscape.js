@@ -38,8 +38,12 @@
       this.toggle = toggle;
       this.icon = toggle ? toggle.querySelector('img') : null;
       this.status = document.getElementById('soundStatus');
+      this.prompt = document.getElementById('soundPrompt');
       this.supported = Boolean(AudioContextClass && toggle);
-      this.enabled = safeStoredPreference() === 'on';
+      // The experience is sound-on by intent. A fresh visit waits in an
+      // explicit "armed" state until a browser-approved gesture; only a
+      // deliberate stored opt-out remains off.
+      this.enabled = safeStoredPreference() !== 'off';
       this.activated = false;
       this.context = null;
       this.nodes = null;
@@ -50,6 +54,7 @@
       this.suspendTimer = 0;
       this.visibilityTimer = 0;
       this.pressureTimer = 0;
+      this.promptTimer = 0;
       this.operationSerial = 0;
       this.telemetryFrame = 0;
       this.lastControlAt = 0;
@@ -62,6 +67,7 @@
       this.diveTriggered = false;
       this.telemetry = {
         level: 0,
+        presence: 0,
         pressure: 0,
         movement: 0,
         resonance: 0,
@@ -122,6 +128,7 @@
       const sceneBus = this.createGain(1);
       const movementBus = this.createGain(1);
       const eventBus = this.createGain(1);
+      const presenceGain = this.createGain(0);
       const focusFilter = context.createBiquadFilter();
       focusFilter.type = 'lowpass';
       focusFilter.frequency.value = 680;
@@ -132,6 +139,7 @@
 
       movementBus.connect(sceneBus);
       eventBus.connect(sceneBus);
+      presenceGain.connect(sceneBus);
       sceneBus.connect(focusFilter);
       focusFilter.connect(master);
       master.connect(analyser);
@@ -169,6 +177,28 @@
       movementHarmonic.start();
       movementColor.start();
 
+      // A narrow, gently drifting mass layer makes the sound state legible on
+      // ordinary speakers without reintroducing broadband hiss or a noise bed.
+      const presenceFilter = context.createBiquadFilter();
+      presenceFilter.type = 'lowpass';
+      presenceFilter.frequency.value = 148;
+      presenceFilter.Q.value = 0.46;
+      const presenceLow = context.createOscillator();
+      presenceLow.type = 'sine';
+      presenceLow.frequency.value = 44.2;
+      const presenceLowGain = this.createGain(0.72);
+      const presenceUpper = context.createOscillator();
+      presenceUpper.type = 'sine';
+      presenceUpper.frequency.value = 99.4;
+      const presenceUpperGain = this.createGain(0.38);
+      presenceLow.connect(presenceLowGain);
+      presenceUpper.connect(presenceUpperGain);
+      presenceLowGain.connect(presenceFilter);
+      presenceUpperGain.connect(presenceFilter);
+      presenceFilter.connect(presenceGain);
+      presenceLow.start();
+      presenceUpper.start();
+
       this.nodes = {
         master,
         sceneBus,
@@ -185,6 +215,12 @@
         movementHarmonicGain,
         movementColor,
         movementColorGain,
+        presenceGain,
+        presenceFilter,
+        presenceLow,
+        presenceLowGain,
+        presenceUpper,
+        presenceUpperGain,
       };
       this.levelData = new Float32Array(analyser.fftSize);
       this.schedulePressure();
@@ -213,7 +249,7 @@
           this.triggerPressure(randomBetween(0.58, 0.88));
         }
         this.schedulePressure();
-      }, randomBetween(7800, 15800));
+      }, randomBetween(5000, 9000));
     }
 
     registerEvent(kind, durationMs, peak) {
@@ -280,10 +316,20 @@
         lowFrom: base, lowTo: base * randomBetween(0.94, 1.035),
         upperFrom: base * ratio,
         upperTo: base * (ratio + randomBetween(-0.055, 0.075)),
-        lowLevel: 0.0115 * amount, upperLevel: 0.0022 * amount,
+        lowLevel: 0.018 * amount, upperLevel: 0.0055 * amount,
         attack: randomBetween(1.0, 1.55),
         releaseAt: randomBetween(2.2, 3.3),
         release: randomBetween(0.75, 1.08),
+      });
+    }
+
+    triggerEnableCue() {
+      this.createEventPair({
+        kind: 'enable', duration: 2.1, pan: 0,
+        lowFrom: 43.8, lowTo: 47.1,
+        upperFrom: 98.6, upperTo: 104.2,
+        lowLevel: 0.027, upperLevel: 0.007,
+        attack: 0.18, releaseAt: 0.92, release: 0.48,
       });
     }
 
@@ -399,7 +445,8 @@
         const now = this.context.currentTime;
         this.nodes.master.gain.cancelScheduledValues(now);
         this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, now);
-        this.nodes.master.gain.setTargetAtTime(0.78, now, 0.48);
+        this.nodes.master.gain.setTargetAtTime(0.90, now, 0.12);
+        this.triggerEnableCue();
         this.setUiState('on');
         return true;
       }
@@ -421,19 +468,28 @@
     async handleToggle(event) {
       event.preventDefault();
       event.stopPropagation();
+      if (this.toggle.dataset.soundState === 'starting') return;
       if (this.enabled && !this.activated) await this.setEnabled(true, false);
       else await this.setEnabled(!this.enabled);
     }
 
     async handleGesture(event) {
       if (!this.enabled || this.activated) return;
+      if (this.toggle.dataset.soundState === 'starting') return;
       if (this.toggle && this.toggle.contains(event.target)) return;
       await this.setEnabled(true, false);
     }
 
     async handleKeydown(event) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key.toLowerCase() !== 'm') return;
+      if (this.toggle.dataset.soundState === 'starting') return;
+      const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+      if (key !== 'm') {
+        if (this.enabled && !this.activated && !event.repeat) {
+          await this.setEnabled(true, false);
+        }
+        return;
+      }
       event.preventDefault();
       if (this.enabled && !this.activated) await this.setEnabled(true, false);
       else await this.setEnabled(!this.enabled);
@@ -455,7 +511,7 @@
         this.ensureAudio().then((didStart) => {
           if (!didStart || !this.nodes || !this.enabled || document.hidden) return;
           const now = this.context.currentTime;
-          this.nodes.master.gain.setTargetAtTime(0.78, now, 0.38);
+          this.nodes.master.gain.setTargetAtTime(0.90, now, 0.38);
           this.setUiState('on');
         });
       }
@@ -463,9 +519,10 @@
 
     setUiState(state) {
       if (!this.toggle) return;
+      const previousState = this.toggle.dataset.soundState;
       const visiblyOn = state === 'on' || state === 'starting' || state === 'armed';
       const label = visiblyOn
-        ? state === 'armed' ? '声音已开启，触碰页面后播放' : '关闭声音'
+        ? state === 'armed' ? '轻触开启声音' : state === 'starting' ? '正在唤醒声音' : '关闭声音'
         : state === 'unsupported' ? '当前浏览器不支持声音' : '开启声音';
 
       this.toggle.dataset.soundState = state;
@@ -480,7 +537,24 @@
       if (this.status) {
         this.status.textContent = state === 'on'
           ? '声音已开启'
-          : state === 'armed' ? '声音将在触碰页面后开启' : '声音已关闭';
+          : state === 'armed' ? '声音等待触碰开启' : '声音已关闭';
+      }
+      if (this.prompt) {
+        if (state === 'armed' || state === 'starting') {
+          window.clearTimeout(this.promptTimer);
+          this.prompt.textContent = state === 'armed' ? '轻触开启声音' : '正在唤醒声音';
+          this.prompt.classList.toggle('is-visible', true);
+        } else if (state === 'on' && previousState !== 'on') {
+          window.clearTimeout(this.promptTimer);
+          this.prompt.textContent = '声音已开启';
+          this.prompt.classList.toggle('is-visible', true);
+          this.promptTimer = window.setTimeout(() => {
+            if (this.prompt) this.prompt.classList.toggle('is-visible', false);
+          }, 1500);
+        } else if (state !== 'on') {
+          window.clearTimeout(this.promptTimer);
+          this.prompt.classList.toggle('is-visible', false);
+        }
       }
     }
 
@@ -530,6 +604,34 @@
       const entry = clamp(encounter.entry || 0, 0, 1);
       const boundarySilence = clamp(encounter.boundarySilence || 0, 0, 1);
       const baseFrequency = 43.5 + movement * 13.5 + (0.5 - vertical) * 3.2;
+      const presenceWave = clamp(
+        0.5
+          + Math.sin(now * 0.00039) * 0.34
+          + Math.sin(now * 0.00017 + 1.7) * 0.16,
+        0,
+        1
+      );
+      const presenceBreath = smoothstep(0.12, 0.90, presenceWave);
+      const presenceLevel = phase === 'handoff'
+        ? 0
+        : (0.006 + presenceBreath * 0.006)
+          * (1 - focus * 0.22)
+          * (1 - entry * 0.56)
+          * (1 - boundarySilence);
+
+      this.glide(
+        this.nodes.presenceLow.frequency,
+        43.8 + Math.sin(now * 0.00031) * 1.7 + Math.sin(now * 0.00011) * 0.6,
+        audioNow,
+        0.72
+      );
+      this.glide(
+        this.nodes.presenceUpper.frequency,
+        99.3 + Math.sin(now * 0.00023 + 0.8) * 3.1,
+        audioNow,
+        0.82
+      );
+      this.glide(this.nodes.presenceFilter.frequency, 136 + presenceWave * 24, audioNow, 0.66);
 
       this.glide(this.nodes.movementLow.frequency, baseFrequency, audioNow, 0.11);
       this.glide(
@@ -543,7 +645,7 @@
       this.glide(this.nodes.movementPanner.pan, pan * (1 - focus * 0.82), audioNow, 0.10);
       this.glide(
         this.nodes.movementGain.gain,
-        movement * (0.006 + speedAmount * 0.0105) * (1 - focus * 0.48),
+        movement * (0.008 + speedAmount * 0.013) * (1 - focus * 0.48),
         audioNow,
         movement > 0.08 ? 0.10 : 0.72
       );
@@ -572,6 +674,13 @@
       this.maybeTriggerMetabolism(state.metabolism && state.metabolism.events, now);
 
       const ducked = now < this.duckUntil;
+      const audiblePresence = presenceLevel * (ducked ? 0.22 : 1);
+      this.glide(
+        this.nodes.presenceGain.gain,
+        audiblePresence,
+        audioNow,
+        ducked ? 0.08 : 0.58
+      );
       this.glide(this.nodes.movementBus.gain, ducked ? 0.24 : 1, audioNow, ducked ? 0.08 : 0.72);
       this.glide(
         this.nodes.focusFilter.frequency,
@@ -590,6 +699,7 @@
         boundaryActive ? 0.022 : 0.12
       );
       this.lastPhase = phase;
+      this.telemetry.presence = audiblePresence;
       this.telemetry.movement = movement;
       this.telemetry.focus = focus;
       this.telemetry.entry = entry;
@@ -610,6 +720,7 @@
       const rms = Math.sqrt(sum / this.levelData.length);
       this.telemetry.level = rms;
       this.toggle.dataset.soundLevel = rms.toFixed(4);
+      this.toggle.dataset.presenceLevel = this.telemetry.presence.toFixed(4);
       this.toggle.dataset.pressureLevel = this.telemetry.pressure.toFixed(4);
       this.toggle.dataset.movementLevel = this.telemetry.movement.toFixed(3);
       this.toggle.dataset.resonanceLevel = this.telemetry.resonance.toFixed(4);
@@ -628,7 +739,7 @@
         activated: this.activated,
         contextState: this.context ? this.context.state : 'uninitialized',
         uiState: this.toggle ? this.toggle.dataset.soundState : 'missing',
-        architecture: 'sparse-oscillator-events',
+        architecture: 'sparse-low-frequency-presence',
         telemetry: { ...this.telemetry },
       };
     }
@@ -637,6 +748,7 @@
       window.clearTimeout(this.suspendTimer);
       window.clearTimeout(this.visibilityTimer);
       window.clearTimeout(this.pressureTimer);
+      window.clearTimeout(this.promptTimer);
       this.timers.forEach((timer) => window.clearTimeout(timer));
       this.timers.clear();
       if (this.toggle) this.toggle.removeEventListener('click', this.handleToggle);

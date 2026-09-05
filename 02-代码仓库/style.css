@@ -14,6 +14,10 @@
   --contact-hold: 0;
   --contact-pull: 0;
   --contact-entry: 0;
+  --hotzone-cue: 0;
+  --hotzone-scale: .96;
+  --pupil-x: 0px;
+  --pupil-y: 0px;
 }
 
 * {
@@ -74,8 +78,59 @@ body {
     brightness(var(--cosmos-brightness))
     contrast(var(--cosmos-contrast));
   transform: scale(var(--cosmos-scale));
-  transform-origin: 50% 50%;
+  transform-origin:
+    calc(50% + var(--pupil-x))
+    calc(50% + var(--pupil-y));
   will-change: opacity, filter, transform;
+}
+
+.cosmos::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: calc(50% + var(--pupil-x));
+  top: calc(50% + var(--pupil-y));
+  width: clamp(230px, 32vmin, 430px);
+  aspect-ratio: 1;
+  border-radius: 46% 54% 51% 49% / 53% 47% 55% 45%;
+  background:
+    radial-gradient(
+      ellipse 40% 14% at 48% 23%,
+      rgba(var(--paper) / .28) 0%,
+      rgba(152 160 164 / .11) 42%,
+      transparent 76%
+    ),
+    radial-gradient(
+      ellipse 15% 38% at 76% 53%,
+      rgba(var(--paper) / .23) 0%,
+      rgba(152 160 164 / .09) 46%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 36% 13% at 47% 78%,
+      rgba(var(--paper) / .20) 0%,
+      rgba(152 160 164 / .08) 48%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse 13% 34% at 24% 55%,
+      rgba(var(--paper) / .18) 0%,
+      rgba(152 160 164 / .07) 50%,
+      transparent 82%
+    ),
+    radial-gradient(
+      ellipse 43% 46% at 50% 51%,
+      rgba(0 0 0 / .48) 0 58%,
+      transparent 84%
+    );
+  opacity: var(--hotzone-cue);
+  filter: blur(7px) saturate(.72);
+  transform: translate(-50%, -50%) rotate(-4deg) scale(var(--hotzone-scale));
+  transition:
+    opacity .9s cubic-bezier(.22, .61, .36, 1),
+    transform 1.25s cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
+  will-change: opacity, transform;
 }
 
 .cosmos canvas {
@@ -209,6 +264,32 @@ body {
   transform: scale(1.03);
 }
 
+.sound-prompt {
+  position: fixed;
+  z-index: 12;
+  top: clamp(32px, calc(2.4vw + 13px), 51px);
+  right: clamp(76px, calc(2.4vw + 56px), 94px);
+  color: rgba(var(--paper) / .72);
+  font-family: "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: .16em;
+  text-shadow: 0 0 16px rgba(0 0 0 / .92);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(5px);
+  transition:
+    opacity .65s ease,
+    transform .8s cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
+}
+
+.contact.is-ready:not([data-intro="blackout"]) .sound-prompt.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -248,7 +329,7 @@ body {
   position: absolute;
   z-index: 3;
   left: 50%;
-  bottom: 10.55vh;
+  top: 34.5vh;
   width: min(72vw, 640px);
   opacity: var(--guide-exit-opacity);
   transform:
@@ -264,17 +345,20 @@ body {
   min-height: 1.6em;
   margin: 0;
   padding-left: .2em;
-  color: rgba(var(--paper) / .48);
+  color: rgba(var(--paper) / .82);
   font-family: "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  font-size: clamp(10px, .72vw, 12px);
+  font-size: clamp(13px, 1vw, 16px);
   font-weight: 300;
   line-height: 1.6;
-  letter-spacing: .2em;
+  letter-spacing: .22em;
+  text-shadow:
+    0 1px 12px rgba(0 0 0 / .96),
+    0 0 26px rgba(0 0 0 / .82);
   opacity: 0;
-  transform: translateY(7px);
+  transform: translateY(6px);
   transition:
-    opacity .85s ease,
-    transform 1.1s cubic-bezier(.22, .61, .36, 1);
+    opacity .8s ease,
+    transform .95s cubic-bezier(.22, .61, .36, 1);
 }
 
 .guide p.is-visible {
@@ -368,8 +452,12 @@ noscript {
   }
 
   .guide {
-    bottom: 9vh;
+    top: 31.5vh;
     width: 88vw;
+  }
+
+  .guide p {
+    font-size: 13px;
   }
 
   .sound-toggle {
@@ -382,6 +470,12 @@ noscript {
   .sound-toggle img {
     width: 19px;
     height: 19px;
+  }
+
+  .sound-prompt {
+    top: 34px;
+    right: 74px;
+    font-size: 10px;
   }
 }
 
@@ -401,6 +495,8 @@ noscript {
   .guide p,
   .sound-toggle,
   .sound-toggle img,
+  .sound-prompt,
+  .cosmos::after,
   .contact-cursor,
   .contact-cursor span {
     transition-duration: .01ms !important;

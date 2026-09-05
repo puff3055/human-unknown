@@ -77,27 +77,12 @@
       vec2 tangent = vec2(-radial.y, radial.x);
 
       float revealProgress = clamp(uNarrative.x, 0.0, 1.0);
-      float collapseProgress = clamp(uNarrative.y, 0.0, 1.0);
-      float fallProgress = clamp(uNarrative.z, 0.0, 1.0);
-      float narrativeScale = mix(1.0, 2.35, collapseProgress);
-      narrativeScale = mix(
-        narrativeScale,
-        0.045,
-        pow(fallProgress, 1.32)
-      );
-      vec2 narrativeUv = vec2(0.5) + (vUv - vec2(0.5)) * narrativeScale;
-      narrativeUv += tangent
-        * sin(radius * 13.0 - uTime * 0.42)
-        * fallProgress
-        * (1.0 - fallProgress)
-        * 0.008;
-      vec2 narrativeEdge = abs(narrativeUv - vec2(0.5)) * 2.0;
-      float collapseFrame = 1.0 - smoothstep(
-        0.96,
-        1.12,
-        max(narrativeEdge.x, narrativeEdge.y)
-      );
-      float narrativeMask = mix(1.0, collapseFrame, collapseProgress * (1.0 - fallProgress));
+      float zoomProgress = clamp(uNarrative.y, 0.0, 1.0);
+      float entryProgress = clamp(uNarrative.z, 0.0, 1.0);
+      // Entry scale is owned by the page transform so the entire eye advances
+      // through one continuous Z-axis move. Sampling the texture at a second,
+      // opposing scale here caused the old shrink-then-grow reversal.
+      vec2 narrativeUv = vUv;
 
       vec2 baseSourceUv = coverUv(narrativeUv);
       float planetNeighborhood = max(
@@ -647,8 +632,7 @@
         smoothstep(0.72, 1.0, revealProgress)
       );
       color *= smoothstep(0.0, 0.045, revealProgress) * blackLevelGate;
-      color *= narrativeMask;
-      color *= 1.0 - smoothstep(0.84, 1.0, fallProgress);
+      color *= 1.0 - smoothstep(0.90, 1.0, max(zoomProgress, entryProgress));
 
       gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
     }
@@ -874,8 +858,8 @@
       gl.uniform3f(
         locations.narrative,
         state.reveal || 0,
-        state.collapse || 0,
-        state.fall || 0
+        state.zoom || 0,
+        state.entry || 0
       );
       gl.uniform4f(
         locations.flow,

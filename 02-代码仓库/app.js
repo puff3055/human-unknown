@@ -17,6 +17,7 @@
   const contactCursor = document.getElementById('contactCursor');
   const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const guideSwapDelay = reduceMotion ? 60 : 650;
   const encounterApi = window.HumanUnknownEncounter;
   const encounter = encounterApi
     ? new encounterApi.EncounterMachine({ reducedMotion: reduceMotion })
@@ -144,6 +145,8 @@
   let pendingGuide = '';
   let reducedFrameTimer = 0;
   let exitEventDispatched = false;
+  let entryOriginX = 0;
+  let entryOriginY = 0;
   let encounterState = encounter ? encounter.getState() : {
     phase: 'opening',
     intro: 'blackout',
@@ -151,6 +154,7 @@
     reveal: 0,
     hold: 0,
     entry: 0,
+    zoom: 0,
     collapse: 0,
     boundarySilence: 0,
     fall: 0,
@@ -250,8 +254,8 @@
         pointerX: 0,
         pointerY: 0,
         reveal: 0,
-        collapse: 0,
-        fall: 0,
+        zoom: 0,
+        entry: 0,
         lifeA: metabolism.lifeA,
         lifeB: metabolism.lifeB,
         waveA: waves.waveA,
@@ -292,7 +296,7 @@
       guideText.textContent = copy;
       guideText.classList.add('is-visible');
       pendingGuide = '';
-    }, 480);
+    }, guideSwapDelay);
   }
 
   function isSoundTarget(target) {
@@ -334,6 +338,11 @@
     encounterState = nextState;
     phase = nextState.phase;
 
+    if (previousPhase !== phase && phase === 'entering') {
+      entryOriginX = gaze.x;
+      entryOriginY = gaze.y;
+    }
+
     contact.dataset.intro = nextState.intro;
     contact.dataset.phase = phase;
     contact.dataset.hold = nextState.hold.toFixed(3);
@@ -348,28 +357,44 @@
 
     const reveal = clamp(nextState.reveal, 0, 1);
     const entry = clamp(nextState.entry, 0, 1);
-    const collapse = reduceMotion ? 0 : clamp(nextState.collapse, 0, 1);
-    const fall = reduceMotion ? 0 : clamp(nextState.fall, 0, 1);
+    const zoom = reduceMotion ? 0 : clamp(nextState.zoom || 0, 0, 1);
     const cosmosScale = reduceMotion
       ? 1
-      : 1 - collapse * 0.17 + fall * 1.65;
-    const guideExit = 1 - smoothstep(0.02, 0.28, entry);
-    const entryShift = -smoothstep(0, 0.30, entry)
-      * Math.min(window.innerHeight * 0.38, 420);
-    const finalBlack = smoothstep(0.76, 1, entry);
-    const handoffBlack = Math.max(nextState.boundarySilence, finalBlack, nextState.handoff ? 1 : 0);
+      : 1 + nextState.hold * 0.05 + zoom * 3.55;
+    const guideExit = 1 - smoothstep(0.20, 0.45, entry);
+    const finalBlack = smoothstep(0.86, 1, zoom);
+    const handoffBlack = Math.max(finalBlack, nextState.handoff ? 1 : 0);
     const pull = phase === 'entering' || phase === 'handoff'
       ? 1
       : phase === 'aligned'
         ? interaction.coreAmount * (0.34 + nextState.hold * 0.66)
         : interaction.coreAmount * 0.16;
+    const hotzoneCue = isTrackingPhase(phase)
+      ? clamp(
+        0.36
+          + presence.proximity * 0.36
+          + interaction.coreAmount * 0.17
+          + nextState.hold * 0.11,
+        0,
+        1
+      )
+      : 0;
+    const hotzoneScale = 0.96
+      + interaction.coreAmount * 0.05
+      + nextState.hold * 0.07;
+    const pupilOriginX = phase === 'entering' || phase === 'handoff'
+      ? entryOriginX
+      : gaze.x;
+    const pupilOriginY = phase === 'entering' || phase === 'handoff'
+      ? entryOriginY
+      : gaze.y;
 
     contact.style.setProperty('--intro-reveal', reveal.toFixed(4));
     contact.style.setProperty('--cosmos-brightness', (0.18 + reveal * 0.82).toFixed(3));
     contact.style.setProperty('--cosmos-contrast', (1.72 - reveal * 0.72).toFixed(3));
     contact.style.setProperty('--cosmos-scale', cosmosScale.toFixed(4));
-    contact.style.setProperty('--entry-shift-y', `${entryShift.toFixed(1)}px`);
-    contact.style.setProperty('--entry-scale', (1 - smoothstep(0, 0.34, entry) * 0.38).toFixed(4));
+    contact.style.setProperty('--entry-shift-y', '0px');
+    contact.style.setProperty('--entry-scale', '1');
     contact.style.setProperty('--guide-exit-opacity', guideExit.toFixed(4));
     contact.style.setProperty('--handoff-black', handoffBlack.toFixed(4));
     contact.style.setProperty('--contact-proximity', presence.proximity.toFixed(4));
@@ -377,8 +402,10 @@
     contact.style.setProperty('--contact-hold', nextState.hold.toFixed(4));
     contact.style.setProperty('--contact-pull', pull.toFixed(4));
     contact.style.setProperty('--contact-entry', entry.toFixed(4));
-    contact.style.setProperty('--pupil-x', `${gaze.x.toFixed(2)}px`);
-    contact.style.setProperty('--pupil-y', `${gaze.y.toFixed(2)}px`);
+    contact.style.setProperty('--hotzone-cue', hotzoneCue.toFixed(4));
+    contact.style.setProperty('--hotzone-scale', hotzoneScale.toFixed(4));
+    contact.style.setProperty('--pupil-x', `${pupilOriginX.toFixed(2)}px`);
+    contact.style.setProperty('--pupil-y', `${pupilOriginY.toFixed(2)}px`);
 
     if (nextState.guide && guideText.textContent !== nextState.guide) {
       setGuide(nextState.guide);
@@ -1284,6 +1311,7 @@
     nebulaCanvas.dataset.hotzone = contact.dataset.hotzone;
     nebulaCanvas.dataset.contactHold = encounterState.hold.toFixed(3);
     nebulaCanvas.dataset.entry = encounterState.entry.toFixed(3);
+    nebulaCanvas.dataset.zoom = (encounterState.zoom || 0).toFixed(3);
     nebulaCanvas.dataset.collapse = encounterState.collapse.toFixed(3);
     nebulaCanvas.dataset.fall = encounterState.fall.toFixed(3);
     nebulaCanvas.dataset.metabolism = String(metabolism.activeCount);
@@ -1354,10 +1382,21 @@
         awareness: presence.awareness,
         study: presence.study,
         approach: presence.approach,
-        pupilDilation: pupil.value,
+        pupilDilation: clamp(
+          Math.max(
+            pupil.value
+              + interaction.coreAmount * 0.12
+              + encounterState.hold * 0.18,
+            phase === 'entering' || phase === 'handoff'
+              ? 0.30 + (encounterState.zoom || 0) * 0.70
+              : 0
+          ),
+          0,
+          1
+        ),
         reveal: encounterState.reveal,
-        collapse: encounterState.collapse,
-        fall: encounterState.fall,
+        zoom: encounterState.zoom,
+        entry: encounterState.entry,
         lifeA: metabolism.lifeA,
         lifeB: metabolism.lifeB,
         waveA: waves.waveA,
@@ -1451,6 +1490,7 @@
         hold: encounterState.hold,
         holdMs: encounterState.holdMs,
         entry: encounterState.entry,
+        zoom: encounterState.zoom,
         entryDurationMs: encounterState.entryDurationMs,
         collapse: encounterState.collapse,
         boundarySilence: encounterState.boundarySilence,
@@ -1470,7 +1510,7 @@
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
       contract: {
-        version: 4,
+        version: '4.1',
         phaseAttribute: 'data-phase',
         introAttribute: 'data-intro',
         exitEvent: 'humanunknown:homepage-exit',
@@ -1480,6 +1520,8 @@
           '--contact-hold',
           '--contact-pull',
           '--contact-entry',
+          '--hotzone-cue',
+          '--hotzone-scale',
           '--pupil-x',
           '--pupil-y',
         ],

@@ -29,6 +29,10 @@ assert.deepEqual(
 );
 assert.equal(STANDARD_TIMING.titleMinReadMs, 4000);
 assert.equal(STANDARD_TIMING.holdMs, 1400);
+assert.equal(STANDARD_TIMING.contactReadMs, 3200);
+assert.equal(STANDARD_TIMING.nearReadMs, 3200);
+assert.equal(STANDARD_TIMING.noticedReadMs, 3600);
+assert.equal(STANDARD_TIMING.alignedReadMs, 3200);
 assert.ok(STANDARD_TIMING.revealMs >= 3000 && STANDARD_TIMING.revealMs <= 4000);
 assert.ok(STANDARD_TIMING.boundaryEndMs - STANDARD_TIMING.boundaryStartMs >= 200);
 assert.equal(resolveContactActive({ inputType: 'touch', touchActive: true }), true);
@@ -80,20 +84,22 @@ assert.equal(state.intro, 'dissolving');
 assert.equal(state.guide, '在这里');
 assert.ok(state.titleReadableFor >= 4000);
 
-state = machine.update(contactAt + STANDARD_TIMING.contactReadMs - 1, {
+const contactReadableAt = contactAt + STANDARD_TIMING.guideEnterMs;
+state = machine.update(contactReadableAt + STANDARD_TIMING.contactReadMs - 1, {
   outer: true,
   core: false,
   active: true,
 });
 assert.equal(state.phase, 'contact', 'outer entry cannot skip the first line read time');
 
-const nearAt = contactAt + STANDARD_TIMING.contactReadMs;
+const nearAt = contactReadableAt + STANDARD_TIMING.contactReadMs;
 state = machine.update(nearAt, { outer: true, core: false, active: true });
 assert.equal(state.phase, 'near');
 assert.equal(state.guide, '对，在这里');
 
 const noticedNoSoonerThan = nearAt
   + STANDARD_TIMING.guideSwapMs
+  + STANDARD_TIMING.guideEnterMs
   + STANDARD_TIMING.nearReadMs;
 
 const releasedNearTouch = new EncounterMachine();
@@ -156,7 +162,11 @@ const coreDwellBeforeRelease = releasedTouchState.coreDwell;
 releasedTouchState = advance(
   releasedNoticedTouch,
   noticedNoSoonerThan + 240,
-  noticedNoSoonerThan + STANDARD_TIMING.guideSwapMs + STANDARD_TIMING.noticedReadMs + 1000,
+  noticedNoSoonerThan
+    + STANDARD_TIMING.guideSwapMs
+    + STANDARD_TIMING.guideEnterMs
+    + STANDARD_TIMING.noticedReadMs
+    + 1000,
   {
     outer: true,
     core: true,
@@ -173,17 +183,22 @@ assert.ok(releasedTouchState.coreDwell < coreDwellBeforeRelease);
 state = advance(
   machine,
   noticedNoSoonerThan,
-  noticedNoSoonerThan + STANDARD_TIMING.guideSwapMs + STANDARD_TIMING.noticedReadMs - 1,
+  noticedNoSoonerThan
+    + STANDARD_TIMING.guideSwapMs
+    + STANDARD_TIMING.guideEnterMs
+    + STANDARD_TIMING.noticedReadMs
+    - 1,
   { outer: true, core: true, active: true }
 );
 assert.equal(state.phase, 'noticed', 'core entry cannot skip the noticing line');
 
 const alignedAt = noticedNoSoonerThan
   + STANDARD_TIMING.guideSwapMs
+  + STANDARD_TIMING.guideEnterMs
   + STANDARD_TIMING.noticedReadMs;
 state = advance(
   machine,
-  noticedNoSoonerThan + STANDARD_TIMING.guideSwapMs + STANDARD_TIMING.noticedReadMs - 1,
+  alignedAt - 1,
   alignedAt,
   { outer: true, core: true, active: true }
 );
@@ -209,10 +224,14 @@ assert.ok(state.hold < holdBeforeLeave);
 assert.equal(state.phase, 'aligned');
 
 const resumeAt = alignedAt + 1000;
+const entryGateAt = alignedAt
+  + STANDARD_TIMING.guideSwapMs
+  + STANDARD_TIMING.guideEnterMs
+  + STANDARD_TIMING.alignedReadMs;
 state = advance(
   machine,
   resumeAt,
-  alignedAt + 2300,
+  entryGateAt,
   { outer: true, core: true, active: true }
 );
 assert.equal(state.phase, 'entering');
@@ -221,16 +240,46 @@ const enteringAt = machine.entryStartedAt;
 
 state = advance(
   machine,
-  alignedAt + 2300,
-  enteringAt + STANDARD_TIMING.boundaryStartMs,
+  entryGateAt,
+  enteringAt + STANDARD_TIMING.entryPauseMs - 1,
   { outer: true, core: true, active: true }
 );
-assert.ok(state.collapse > 0.99);
-assert.ok(state.boundarySilence > 0.95);
+assert.equal(state.zoom, 0, 'entry begins with a short stillness before the forward move');
+
+const zoomSamples = [];
+let previousZoomOffset = STANDARD_TIMING.entryPauseMs - 1;
+let boundarySample = null;
+[
+  STANDARD_TIMING.entryPauseMs,
+  1200,
+  2200,
+  3200,
+  STANDARD_TIMING.boundaryStartMs + 35,
+  STANDARD_TIMING.entryMs - 120,
+].forEach((offset) => {
+  state = advance(
+    machine,
+    enteringAt + previousZoomOffset,
+    enteringAt + offset,
+    { outer: true, core: true, active: true }
+  );
+  zoomSamples.push(state.zoom);
+  if (offset === STANDARD_TIMING.boundaryStartMs + 35) boundarySample = state;
+  previousZoomOffset = offset;
+});
+for (let index = 1; index < zoomSamples.length; index += 1) {
+  assert.ok(
+    zoomSamples[index] >= zoomSamples[index - 1],
+    'pupil zoom must never reverse during entry'
+  );
+}
+assert.ok(zoomSamples.at(-1) > 0.99);
+assert.ok(boundarySample.zoom > 0.97);
+assert.ok(boundarySample.boundarySilence > 0.95);
 
 state = advance(
   machine,
-  enteringAt + STANDARD_TIMING.boundaryStartMs,
+  enteringAt + STANDARD_TIMING.entryMs - 120,
   enteringAt + STANDARD_TIMING.entryMs,
   { outer: true, core: true, active: true }
 );
@@ -248,6 +297,7 @@ const reducedState = reduced.update(reducedTitleAt + REDUCED_TIMING.titleMinRead
 assert.equal(reducedState.phase, 'contact');
 assert.equal(reducedState.reducedMotion, true);
 assert.equal(reducedState.titleMinReadMs, 4000, 'reduced motion preserves reading time');
+assert.equal(REDUCED_TIMING.alignedReadMs, 3200, 'reduced motion preserves narration reading time');
 assert.ok(REDUCED_TIMING.entryMs < STANDARD_TIMING.entryMs);
 assert.equal(
   REDUCED_TIMING.boundaryEndMs - REDUCED_TIMING.boundaryStartMs,
@@ -258,16 +308,28 @@ assert.equal(
 const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
 const style = await fs.readFile(new URL('../style.css', import.meta.url), 'utf8');
+const nebulaSource = await fs.readFile(new URL('../living-nebula.js', import.meta.url), 'utf8');
 
 assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
-assert.match(html, /encounter-machine\.js\?v=4\.0\.0-rc\.1/);
+assert.match(html, /encounter-machine\.js\?v=4\.1\.0-rc\.1/);
+assert.match(html, /id="soundPrompt"[^>]*>\s*轻触开启声音/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);
 assert.match(appSource, /humanunknown:homepage-exit/);
 assert.match(appSource, /--contact-hold/);
 assert.match(appSource, /--contact-pull/);
+assert.match(appSource, /--hotzone-cue/);
+assert.match(appSource, /1 \+ nextState\.hold \* 0\.05 \+ zoom \* 3\.55/);
+assert.doesNotMatch(appSource, /1 - collapse \* 0\.17 \+ fall/);
+assert.match(appSource, /version: '4\.1'/);
 assert.match(style, /@media \(prefers-reduced-motion: reduce\)/);
 assert.match(style, /data-intro="dissolving"/);
+assert.match(style, /\.guide\s*\{[\s\S]*?top: 34\.5vh;/);
+assert.match(style, /\.cosmos::after/);
+assert.match(style, /opacity: var\(--hotzone-cue\)/);
+assert.doesNotMatch(nebulaSource, /narrativeScale|collapseFrame|narrativeMask/);
+assert.match(nebulaSource, /vec2 narrativeUv = vUv;/);
+assert.match(nebulaSource, /state\.zoom \|\| 0/);
 
-console.log('homepage v4 contract: passed');
+console.log('homepage v4.1 contract: passed');
