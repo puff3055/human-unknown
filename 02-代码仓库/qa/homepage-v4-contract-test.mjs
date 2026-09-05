@@ -24,7 +24,7 @@ const {
 
 assert.deepEqual(
   Array.from(COPY_SEQUENCE),
-  ['它注意到你了', '在下方放入你的眼睛'],
+  ['它注意到你了', '在中间放入你的眼睛'],
   'only the two approved lines remain'
 );
 assert.doesNotMatch(machineSource, /对，在这里/);
@@ -100,7 +100,7 @@ function reachAligned(machine) {
     (state) => state.phase === 'aligned',
     AWAY
   );
-  assert.equal(aligned.state.guide, '在下方放入你的眼睛');
+  assert.equal(aligned.state.guide, '在中间放入你的眼睛');
   return aligned;
 }
 
@@ -242,7 +242,7 @@ assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
 assert.match(html, /data-countdown="waiting"/);
 assert.match(html, /id="gazeCountdown"/);
-assert.match(html, /encounter-machine\.js\?v=4\.5\.2-rc\.1/);
+assert.match(html, /encounter-machine\.js\?v=4\.5\.3-rc\.1/);
 assert.match(html, /在瞳孔内连续停留三秒/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);
