@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  const LIFE_EVENT_COUNT = 3;
+  const WAVE_COUNT = 3;
+
   const contact = document.getElementById('contact');
   const nebulaCanvas = document.getElementById('nebulaCanvas');
   const nebulaFallback = document.getElementById('nebulaFallback');
@@ -17,7 +20,20 @@
     inside: true,
     travel: 0,
     speed: 0,
+    eventSpeed: 0,
+    previousEventSpeed: 0,
+    acceleration: 0,
+    targetVelocityX: 0,
+    targetVelocityY: 0,
+    velocityX: 0,
+    velocityY: 0,
+    directionX: 1,
+    directionY: 0,
+    disturbance: 0,
+    stillness: 0,
     lastMovedAt: 0,
+    lastEventAt: 0,
+    stopWaveArmed: false,
   };
 
   const gaze = {
@@ -34,6 +50,8 @@
     targetAwareness: 0,
     approach: 0,
     targetApproach: 0,
+    proximity: 0,
+    previousProximity: 0,
     study: 0,
     targetStudy: 0,
     hold: 0,
@@ -41,18 +59,54 @@
     studyStartedAt: 0,
   };
 
-  const rhythm = {
-    duration: 10.4,
-    offset: Math.random() * 10.4,
-    stage: 'gathering',
-    value: 0,
-    progress: 0,
+  const curiosity = {
+    energy: 0,
+    adaptation: 0,
+    armed: true,
+    lastImpulseAt: 0,
+    lastImpulseKind: 'none',
+    visitedCells: new Set(),
   };
 
-  const awakening = {
-    startedAt: 0,
-    stage: 'waiting',
+  const pupil = {
     value: 0,
+    amplitude: 0,
+    active: false,
+    startedAt: 0,
+    riseDuration: 0,
+    holdDuration: 0,
+    fallDuration: 0,
+    lastCompletedAt: 0,
+  };
+
+  const LIFE_ZONES = [
+    { x: -0.54, y: -0.42, directionX: 0.72, directionY: 0.28, lastUsedAt: -Infinity },
+    { x: 0.48, y: -0.43, directionX: -0.48, directionY: 0.42, lastUsedAt: -Infinity },
+    { x: -0.60, y: 0.24, directionX: 0.62, directionY: -0.20, lastUsedAt: -Infinity },
+    { x: 0.57, y: 0.30, directionX: -0.66, directionY: -0.18, lastUsedAt: -Infinity },
+    { x: -0.15, y: -0.64, directionX: 0.20, directionY: 0.82, lastUsedAt: -Infinity },
+    { x: 0.10, y: 0.63, directionX: -0.12, directionY: -0.88, lastUsedAt: -Infinity },
+    { x: -0.38, y: 0.53, directionX: 0.52, directionY: -0.55, lastUsedAt: -Infinity },
+    { x: 0.36, y: -0.58, directionX: -0.32, directionY: 0.68, lastUsedAt: -Infinity },
+  ];
+
+  const metabolism = {
+    startedAt: 0,
+    events: new Array(LIFE_EVENT_COUNT).fill(null),
+    lifeA: new Float32Array(LIFE_EVENT_COUNT * 4),
+    lifeB: new Float32Array(LIFE_EVENT_COUNT * 4),
+    activeCount: 0,
+    growthCount: 0,
+    decayCount: 0,
+    lastZoneIndex: -1,
+  };
+
+  const waves = {
+    items: [],
+    waveA: new Float32Array(WAVE_COUNT * 4),
+    waveB: new Float32Array(WAVE_COUNT * 4),
+    nextAllowedAt: 0,
+    serial: 0,
   };
 
   let nebula = null;
@@ -75,16 +129,27 @@
   }
 
   function smoothstep(edge0, edge1, value) {
-    const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+    const t = clamp((value - edge0) / Math.max(0.0001, edge1 - edge0), 0, 1);
     return t * t * (3 - 2 * t);
   }
 
   function easeInOut(value) {
-    return value * value * (3 - 2 * value);
+    const t = clamp(value, 0, 1);
+    return t * t * (3 - 2 * t);
   }
 
   function damp(current, target, rate, deltaSeconds) {
     return current + (target - current) * (1 - Math.exp(-rate * deltaSeconds));
+  }
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function normalizeDirection(x, y, fallbackX = 1, fallbackY = 0) {
+    const length = Math.hypot(x, y);
+    if (length < 0.0001) return { x: fallbackX, y: fallbackY };
+    return { x: x / length, y: y / length };
   }
 
   function reveal() {
@@ -115,11 +180,14 @@
       contact.classList.remove('no-webgl');
       nebulaCanvas.dataset.renderer = 'living-nebula';
       nebulaCanvas.dataset.texture = 'continuous';
-      awakening.startedAt = performance.now();
-      awakening.stage = 'emerging';
+      initializeMetabolism(performance.now());
       nebula.render(0, {
         pointerX: 0,
         pointerY: 0,
+        lifeA: metabolism.lifeA,
+        lifeB: metabolism.lifeB,
+        waveA: waves.waveA,
+        waveB: waves.waveB,
       });
       requestAnimationFrame(reveal);
     } catch (error) {
@@ -156,6 +224,27 @@
     }, 480);
   }
 
+  function addCuriosityImpulse(amount, kind, now) {
+    if (reduceMotion || amount <= 0) return;
+    const repeated = curiosity.lastImpulseKind === kind
+      && now - curiosity.lastImpulseAt < 900;
+    const repetitionScale = repeated ? 0.42 : 1;
+    const adaptationScale = 1 - curiosity.adaptation * 0.58;
+
+    curiosity.energy = clamp(
+      curiosity.energy + amount * repetitionScale * adaptationScale,
+      0,
+      1.4
+    );
+    curiosity.adaptation = clamp(
+      curiosity.adaptation + (repeated ? 0.12 : 0.035),
+      0,
+      1
+    );
+    curiosity.lastImpulseAt = now;
+    curiosity.lastImpulseKind = kind;
+  }
+
   function becomeAware() {
     if (phase !== 'waiting') return;
     phase = 'noticed';
@@ -163,11 +252,12 @@
     presence.targetAwareness = 1;
     contact.dataset.phase = phase;
     setLifeState('orienting');
+    addCuriosityImpulse(0.98, 'first-contact', noticedAt);
     setGuide('它注意到你了。');
 
     observeTimer = window.setTimeout(() => {
       if (lifeState === 'orienting') setLifeState('observing');
-    }, reduceMotion ? 50 : 1320);
+    }, reduceMotion ? 50 : 1180);
   }
 
   function scheduleAwareness(now) {
@@ -179,11 +269,11 @@
 
     holdTimer = window.setTimeout(() => {
       presence.targetHold = 0;
-    }, reduceMotion ? 40 : 280);
+    }, reduceMotion ? 40 : 240);
 
     awarenessTimer = window.setTimeout(
       becomeAware,
-      reduceMotion ? 80 : 310
+      reduceMotion ? 80 : 260
     );
   }
 
@@ -195,25 +285,241 @@
     setGuide('再靠近一点。');
   }
 
-  function updatePointer(clientX, clientY, pointerType = 'mouse', now = performance.now()) {
-    const distance = Math.hypot(
-      clientX - pointer.previousX,
-      clientY - pointer.previousY
+  function pickLifeZone(now) {
+    const cooledZones = LIFE_ZONES
+      .map((zone, index) => ({ zone, index }))
+      .filter(({ zone, index }) => (
+        index !== metabolism.lastZoneIndex
+        && now - zone.lastUsedAt > 20000
+      ));
+    const pool = cooledZones.length > 0
+      ? cooledZones
+      : LIFE_ZONES
+        .map((zone, index) => ({ zone, index }))
+        .filter(({ index }) => index !== metabolism.lastZoneIndex)
+        .sort((a, b) => a.zone.lastUsedAt - b.zone.lastUsedAt)
+        .slice(0, 3);
+    const selection = pool[Math.floor(Math.random() * pool.length)] || {
+      zone: LIFE_ZONES[0],
+      index: 0,
+    };
+    selection.zone.lastUsedAt = now;
+    metabolism.lastZoneIndex = selection.index;
+    return selection;
+  }
+
+  function createLifeEvent(slot, now, kind, delay = 0, durationOverride = 0) {
+    const { zone, index } = pickLifeZone(now + delay);
+    const jitter = randomBetween(-0.20, 0.20);
+    const direction = normalizeDirection(
+      zone.directionX - zone.directionY * jitter,
+      zone.directionY + zone.directionX * jitter,
+      zone.directionX,
+      zone.directionY
     );
-    const elapsed = Math.max(16, now - pointer.lastMovedAt);
+    const duration = durationOverride || (kind > 0
+      ? randomBetween(4300, 6500)
+      : randomBetween(5200, 7800));
+
+    metabolism.events[slot] = {
+      slot,
+      zoneIndex: index,
+      x: zone.x + randomBetween(-0.035, 0.035),
+      y: zone.y + randomBetween(-0.030, 0.030),
+      directionX: direction.x,
+      directionY: direction.y,
+      kind,
+      energy: randomBetween(0.78, 1.0),
+      seed: randomBetween(0.05, 0.95),
+      startedAt: now + delay,
+      duration,
+      signalled: false,
+    };
+  }
+
+  function initializeMetabolism(now) {
+    metabolism.startedAt = now;
+    createLifeEvent(0, now, 1, 350, 5200);
+    createLifeEvent(1, now, -1, 800, 6600);
+    createLifeEvent(2, now, 1, 2450, 5800);
+  }
+
+  function getEventScreenPosition(event) {
+    return {
+      x: (event.x * 0.5 + 0.5) * window.innerWidth,
+      y: (event.y * 0.5 + 0.5) * window.innerHeight,
+    };
+  }
+
+  function spawnWave({
+    x,
+    y,
+    directionX,
+    directionY,
+    energy,
+    now,
+    kind,
+    reach,
+    duration,
+    bypassCadence = false,
+  }) {
+    if (reduceMotion) return false;
+    if (!bypassCadence && now < waves.nextAllowedAt) return false;
+
+    waves.items = waves.items.filter((wave) => (
+      (now - wave.startedAt) / wave.duration < 1.035
+    ));
+
+    if (waves.items.length >= WAVE_COUNT) {
+      const recyclableIndex = waves.items.findIndex((wave) => {
+        const progress = (now - wave.startedAt) / wave.duration;
+        return progress > 0.92 && wave.energy * (1 - progress) < 0.055;
+      });
+      if (recyclableIndex === -1) return false;
+      waves.items.splice(recyclableIndex, 1);
+    }
+
+    const direction = normalizeDirection(
+      directionX,
+      directionY,
+      pointer.directionX,
+      pointer.directionY
+    );
+    const clampedEnergy = clamp(energy, 0.35, 1);
+    waves.items.push({
+      id: ++waves.serial,
+      x,
+      y,
+      directionX: direction.x,
+      directionY: direction.y,
+      energy: clampedEnergy,
+      startedAt: now,
+      duration: duration || randomBetween(3200, 5800),
+      reach: reach || randomBetween(280, 445),
+      seed: randomBetween(0.02, 0.98),
+      kind,
+    });
+    waves.nextAllowedAt = now + randomBetween(280, 760);
+    return true;
+  }
+
+  function advectExistingWaves(deltaX, deltaY, clientX, clientY) {
+    const movementLength = Math.hypot(deltaX, deltaY);
+    if (movementLength < 0.5) return;
+    const movementDirection = normalizeDirection(deltaX, deltaY);
+    const now = performance.now();
+
+    waves.items.forEach((wave) => {
+      const progress = clamp((now - wave.startedAt) / wave.duration, 0, 1);
+      const distance = Math.hypot(clientX - wave.x, clientY - wave.y);
+      const influence = 1 - smoothstep(90, 330, distance);
+      if (influence <= 0 || progress > 0.96) return;
+
+      const carry = influence * (1 - progress * 0.55);
+      wave.x += deltaX * 0.22 * carry;
+      wave.y += deltaY * 0.22 * carry;
+      const blended = normalizeDirection(
+        wave.directionX * (1 - 0.12 * carry) + movementDirection.x * 0.12 * carry,
+        wave.directionY * (1 - 0.12 * carry) + movementDirection.y * 0.12 * carry
+      );
+      wave.directionX = blended.x;
+      wave.directionY = blended.y;
+    });
+  }
+
+  function updatePointer(clientX, clientY, pointerType = 'mouse', now = performance.now()) {
+    const hadMoved = pointer.hasMoved;
+    const deltaX = clientX - pointer.previousX;
+    const deltaY = clientY - pointer.previousY;
+    const distance = Math.hypot(deltaX, deltaY);
+    const elapsedSeconds = clamp(
+      pointer.lastEventAt ? (now - pointer.lastEventAt) / 1000 : 0.016,
+      0.008,
+      0.12
+    );
+    const rawVelocityX = deltaX / elapsedSeconds;
+    const rawVelocityY = deltaY / elapsedSeconds;
+    const eventSpeed = Math.hypot(rawVelocityX, rawVelocityY);
+    const previousDirection = normalizeDirection(
+      pointer.targetVelocityX,
+      pointer.targetVelocityY,
+      pointer.directionX,
+      pointer.directionY
+    );
+    const nextDirection = normalizeDirection(
+      rawVelocityX,
+      rawVelocityY,
+      pointer.directionX,
+      pointer.directionY
+    );
+    const directionDot = previousDirection.x * nextDirection.x
+      + previousDirection.y * nextDirection.y;
 
     pointer.travel += distance;
-    pointer.speed = distance / elapsed * 1000;
+    pointer.previousEventSpeed = pointer.eventSpeed;
+    pointer.eventSpeed = eventSpeed;
+    pointer.acceleration = Math.abs(eventSpeed - pointer.previousEventSpeed)
+      / elapsedSeconds;
+    pointer.targetVelocityX = rawVelocityX;
+    pointer.targetVelocityY = rawVelocityY;
     pointer.x = clientX;
     pointer.y = clientY;
     pointer.previousX = clientX;
     pointer.previousY = clientY;
+    pointer.lastEventAt = now;
     pointer.hasMoved = true;
     pointer.inside = true;
 
     if (distance > 1.5) {
+      advectExistingWaves(deltaX, deltaY, clientX, clientY);
       pointer.lastMovedAt = now;
-      presence.targetStudy = 0;
+      pointer.stopWaveArmed = eventSpeed > 65;
+      pointer.directionX = nextDirection.x;
+      pointer.directionY = nextDirection.y;
+      pointer.disturbance = Math.max(
+        pointer.disturbance,
+        clamp(0.28 + eventSpeed / 1350, 0.28, 1)
+      );
+
+      if (!hadMoved) {
+        addCuriosityImpulse(0.72, 'arrival', now);
+      } else {
+        const cellWidth = Math.max(1, window.innerWidth / 4);
+        const cellHeight = Math.max(1, window.innerHeight / 3);
+        const cellKey = `${Math.floor(clientX / cellWidth)}:${Math.floor(clientY / cellHeight)}`;
+        if (!curiosity.visitedCells.has(cellKey)) {
+          curiosity.visitedCells.add(cellKey);
+          addCuriosityImpulse(0.22, 'new-region', now);
+        }
+
+        if (directionDot < 0.50 && eventSpeed > 180) {
+          addCuriosityImpulse(0.42 * (1 - directionDot), 'direction-change', now);
+          spawnWave({
+            x: clientX,
+            y: clientY,
+            directionX: nextDirection.x,
+            directionY: nextDirection.y,
+            energy: clamp(0.55 + (1 - directionDot) * 0.32, 0.55, 0.92),
+            now,
+            kind: 'turn',
+          });
+        } else if (pointer.acceleration > 1450 && eventSpeed > 240) {
+          addCuriosityImpulse(0.24, 'acceleration', now);
+          spawnWave({
+            x: clientX,
+            y: clientY,
+            directionX: nextDirection.x,
+            directionY: nextDirection.y,
+            energy: clamp(0.48 + eventSpeed / 2600, 0.48, 0.82),
+            now,
+            kind: 'acceleration',
+            reach: randomBetween(260, 380),
+          });
+        } else {
+          curiosity.adaptation = clamp(curiosity.adaptation + 0.004, 0, 1);
+        }
+      }
+
       presence.studyStartedAt = 0;
       if (phase === 'noticed') setLifeState('observing');
       if (phase === 'closer') setLifeState('approaching');
@@ -244,6 +550,7 @@
   document.documentElement.addEventListener('mouseenter', () => {
     pointer.inside = true;
     pointer.lastMovedAt = performance.now();
+    pointer.lastEventAt = pointer.lastMovedAt;
     if (pointer.hasMoved) contact.classList.add('has-pointer');
   });
 
@@ -256,6 +563,7 @@
   window.addEventListener('focus', () => {
     pointer.inside = true;
     pointer.lastMovedAt = performance.now();
+    pointer.lastEventAt = pointer.lastMovedAt;
   });
 
   window.addEventListener('resize', () => {
@@ -267,94 +575,75 @@
     }
   });
 
-  function computeRhythm(timeSeconds) {
-    if (reduceMotion) {
-      rhythm.value = 0;
-      rhythm.progress = 0;
-      rhythm.stage = 'resting';
-      return;
-    }
+  function updatePointerDynamics(deltaSeconds, now) {
+    const idleFor = pointer.lastMovedAt ? now - pointer.lastMovedAt : Infinity;
+    const activelyMoving = pointer.hasMoved && pointer.inside && idleFor < 82;
+    const targetVelocityX = activelyMoving ? pointer.targetVelocityX : 0;
+    const targetVelocityY = activelyMoving ? pointer.targetVelocityY : 0;
+    const velocityRate = activelyMoving ? 16 : 4.4;
 
-    const cyclePosition = ((timeSeconds + rhythm.offset) % rhythm.duration)
-      / rhythm.duration;
-    rhythm.progress = cyclePosition;
+    pointer.velocityX = damp(pointer.velocityX, targetVelocityX, velocityRate, deltaSeconds);
+    pointer.velocityY = damp(pointer.velocityY, targetVelocityY, velocityRate, deltaSeconds);
+    pointer.speed = Math.hypot(pointer.velocityX, pointer.velocityY);
 
-    let baseValue = 0;
+    const disturbanceTarget = activelyMoving
+      ? clamp(0.34 + pointer.eventSpeed / 1250, 0.34, 1)
+      : 0;
+    pointer.disturbance = damp(
+      pointer.disturbance,
+      disturbanceTarget,
+      disturbanceTarget > pointer.disturbance ? 18 : 2.35,
+      deltaSeconds
+    );
+    pointer.stillness = pointer.hasMoved && pointer.inside
+      ? smoothstep(75, 390, idleFor)
+      : 0;
 
-    if (cyclePosition < 0.32) {
-      const progress = easeInOut(cyclePosition / 0.32);
-      rhythm.stage = 'gathering';
-      baseValue = -0.35 + progress * 1.10;
-    } else if (cyclePosition < 0.45) {
-      const progress = (cyclePosition - 0.32) / 0.13;
-      rhythm.stage = 'suspending';
-      baseValue = 0.75 - Math.sin(progress * Math.PI) * 0.04;
-    } else if (cyclePosition < 0.80) {
-      const progress = easeInOut((cyclePosition - 0.45) / 0.35);
-      rhythm.stage = 'releasing';
-      baseValue = 0.75 - progress * 1.30;
-    } else {
-      const progress = (cyclePosition - 0.80) / 0.20;
-      rhythm.stage = 'afterwave';
-      baseValue = -0.55 * (1 - easeInOut(progress))
-        + Math.sin(progress * Math.PI * 2) * 0.10 * (1 - progress);
-    }
-
-    const microRhythm = Math.sin(
-      (timeSeconds + rhythm.offset * 0.31) * Math.PI * 2 / 3.7
-    ) * 0.11 + Math.sin(
-      (timeSeconds - rhythm.offset * 0.17) * Math.PI * 2 / 5.9
-    ) * 0.055;
-    rhythm.value = clamp(baseValue + microRhythm, -0.68, 0.88);
-  }
-
-  function computeAwakening(now) {
-    if (reduceMotion || !awakening.startedAt) {
-      awakening.stage = 'resting';
-      awakening.value = 0;
-      return;
-    }
-
-    const elapsed = (now - awakening.startedAt) / 1000;
-
-    if (elapsed < 0.55) {
-      awakening.stage = 'emerging';
-      awakening.value = 0;
-    } else if (elapsed < 1.62) {
-      awakening.stage = 'gathering';
-      awakening.value = easeInOut((elapsed - 0.55) / 1.07);
-    } else if (elapsed < 1.92) {
-      awakening.stage = 'holding';
-      awakening.value = 1;
-    } else if (elapsed < 2.82) {
-      const release = easeInOut((elapsed - 1.92) / 0.90);
-      awakening.stage = 'releasing';
-      awakening.value = 1 - release;
-    } else {
-      awakening.stage = 'resting';
-      awakening.value = 0;
+    if (
+      pointer.stopWaveArmed
+      && pointer.inside
+      && idleFor > 88
+      && pointer.eventSpeed > 65
+    ) {
+      const stopEnergy = clamp(0.56 + pointer.eventSpeed / 2100, 0.56, 0.94);
+      spawnWave({
+        x: pointer.x,
+        y: pointer.y,
+        directionX: pointer.directionX,
+        directionY: pointer.directionY,
+        energy: stopEnergy,
+        now,
+        kind: 'settling',
+        duration: randomBetween(3800, 6000),
+        reach: randomBetween(300, 455),
+        bypassCadence: true,
+      });
+      addCuriosityImpulse(clamp(pointer.eventSpeed / 2400, 0.18, 0.40), 'slowdown', now);
+      pointer.stopWaveArmed = false;
     }
   }
 
-  function updateCuriosity(deltaSeconds, now) {
+  function updateStudy(deltaSeconds, now) {
+    const idleFor = pointer.lastMovedAt ? now - pointer.lastMovedAt : Infinity;
     const canStudy = pointer.hasMoved
       && pointer.inside
       && phase !== 'waiting'
-      && now - pointer.lastMovedAt > 800
-      && pointer.speed < 80;
+      && idleFor > 72;
 
-    presence.targetStudy = canStudy && !reduceMotion ? 1 : 0;
+    presence.targetStudy = canStudy && !reduceMotion
+      ? smoothstep(72, 310, idleFor)
+      : 0;
     presence.study = damp(
       presence.study,
       presence.targetStudy,
-      presence.targetStudy ? 3.8 : 4.6,
+      presence.targetStudy > presence.study ? 7.8 : 2.9,
       deltaSeconds
     );
 
-    if (presence.targetStudy && !presence.studyStartedAt) {
+    if (presence.targetStudy > 0.16 && !presence.studyStartedAt) {
       presence.studyStartedAt = now;
       setLifeState('studying');
-    } else if (!presence.targetStudy && presence.study < 0.06) {
+    } else if (!presence.targetStudy && presence.study < 0.04) {
       presence.studyStartedAt = 0;
     }
   }
@@ -374,16 +663,16 @@
       ? clamp((pointer.y - viewportCenterY) / Math.max(1, viewportCenterY), -1, 1)
       : 0;
     const directionLength = Math.hypot(directionX, directionY) || 1;
-    const studyReach = presence.study * 8;
+    const studyReach = presence.study * 7;
     const rawTargetX = directionX * 48 + directionX / directionLength * studyReach;
     const rawTargetY = directionY * 31 + directionY / directionLength * studyReach * 0.68;
-    const perceptionRate = canTrack ? 3.05 : 1.35;
+    const perceptionRate = canTrack ? 3.0 : 1.25;
 
     gaze.perceivedX = damp(gaze.perceivedX, rawTargetX, perceptionRate, deltaSeconds);
     gaze.perceivedY = damp(gaze.perceivedY, rawTargetY, perceptionRate, deltaSeconds);
 
-    const stiffness = 18.5;
-    const damping = 8.1;
+    const stiffness = 17.5;
+    const damping = 7.9;
     gaze.velocityX += (
       (gaze.perceivedX - gaze.x) * stiffness - gaze.velocityX * damping
     ) * deltaSeconds;
@@ -401,23 +690,98 @@
     const pupilY = viewportCenterY + gaze.y;
     const distance = Math.hypot(pointer.x - pupilX, pointer.y - pupilY);
     const shortSide = Math.min(window.innerWidth, window.innerHeight);
-    const proximity = 1 - smoothstep(shortSide * 0.065, shortSide * 0.36, distance);
+    const proximity = pointer.hasMoved && pointer.inside
+      ? 1 - smoothstep(shortSide * 0.065, shortSide * 0.36, distance)
+      : 0;
+
+    presence.previousProximity = presence.proximity;
+    presence.proximity = proximity;
+
+    if (
+      proximity > 0.58
+      && presence.previousProximity <= 0.58
+      && phase !== 'waiting'
+    ) {
+      addCuriosityImpulse(0.76, 'approach', now);
+      if (pupil.active) pupil.amplitude = Math.max(pupil.amplitude, 0.96);
+    }
 
     if (
       phase === 'noticed'
-      && now - noticedAt > 1150
+      && now - noticedAt > 1050
       && distance < shortSide * 0.285
     ) {
       askCloser();
     }
 
     presence.targetApproach = phase === 'closer' && !reduceMotion ? proximity : 0;
-    presence.approach = damp(
-      presence.approach,
-      presence.targetApproach,
-      4.6,
+    presence.approach = damp(presence.approach, presence.targetApproach, 3.9, deltaSeconds);
+  }
+
+  function startPupilReaction(now) {
+    const approachWeight = presence.proximity > 0.58 ? 1 : 0;
+    const strength = clamp(curiosity.energy, 0.58, 1.35);
+    pupil.active = true;
+    pupil.startedAt = now;
+    pupil.riseDuration = randomBetween(360, 620);
+    pupil.holdDuration = randomBetween(420, 980) * (0.82 + strength * 0.24);
+    pupil.fallDuration = randomBetween(1900, 3300);
+    pupil.amplitude = clamp(
+      0.48 + strength * 0.25 + approachWeight * 0.18,
+      0.58,
+      1
+    );
+    curiosity.energy *= 0.38;
+    curiosity.adaptation = clamp(curiosity.adaptation + 0.24, 0, 1);
+    curiosity.armed = false;
+  }
+
+  function updateCuriosity(deltaSeconds, now) {
+    const moving = pointer.hasMoved && now - pointer.lastMovedAt < 110;
+    const energyDecay = moving
+      ? 0.10 + curiosity.adaptation * 0.12
+      : 0.16 + curiosity.adaptation * 0.15;
+    curiosity.energy = Math.max(0, curiosity.energy - energyDecay * deltaSeconds);
+    curiosity.adaptation = damp(
+      curiosity.adaptation,
+      moving ? 0.44 : 0.08,
+      moving ? 0.24 : 0.12,
       deltaSeconds
     );
+
+    if (!pupil.active && curiosity.energy < 0.24) curiosity.armed = true;
+    if (
+      phase !== 'waiting'
+      && curiosity.armed
+      && curiosity.energy > 0.62
+      && !pupil.active
+    ) {
+      startPupilReaction(now);
+    }
+
+    if (reduceMotion || !pupil.active) {
+      pupil.value = 0;
+      return;
+    }
+
+    const elapsed = now - pupil.startedAt;
+    const riseEnd = pupil.riseDuration;
+    const holdEnd = riseEnd + pupil.holdDuration;
+    const fallEnd = holdEnd + pupil.fallDuration;
+
+    if (elapsed < riseEnd) {
+      pupil.value = easeInOut(elapsed / riseEnd) * pupil.amplitude;
+    } else if (elapsed < holdEnd) {
+      const holdProgress = (elapsed - riseEnd) / pupil.holdDuration;
+      pupil.value = pupil.amplitude * (1 - Math.sin(holdProgress * Math.PI) * 0.015);
+    } else if (elapsed < fallEnd) {
+      const fallProgress = (elapsed - holdEnd) / pupil.fallDuration;
+      pupil.value = (1 - easeInOut(fallProgress)) * pupil.amplitude;
+    } else {
+      pupil.value = 0;
+      pupil.active = false;
+      pupil.lastCompletedAt = now;
+    }
   }
 
   function updatePresence(deltaSeconds) {
@@ -435,9 +799,97 @@
     );
   }
 
+  function updateMetabolism(now) {
+    if (!metabolism.startedAt) initializeMetabolism(now);
+
+    metabolism.lifeA.fill(0);
+    metabolism.lifeB.fill(0);
+    metabolism.activeCount = 0;
+    metabolism.growthCount = 0;
+    metabolism.decayCount = 0;
+
+    metabolism.events.forEach((event, slot) => {
+      if (!event) return;
+      let progress = (now - event.startedAt) / event.duration;
+
+      if (progress >= 1.035) {
+        const nextKind = event.kind > 0 ? -1 : 1;
+        createLifeEvent(slot, now, nextKind, randomBetween(850, 3600));
+        return;
+      }
+
+      const offset = slot * 4;
+      const active = progress >= 0 && progress <= 1;
+      progress = clamp(progress, 0, 1);
+      const energy = active && !reduceMotion ? event.energy : 0;
+
+      metabolism.lifeA[offset] = event.x;
+      metabolism.lifeA[offset + 1] = event.y;
+      metabolism.lifeA[offset + 2] = progress;
+      metabolism.lifeA[offset + 3] = event.kind;
+      metabolism.lifeB[offset] = event.directionX;
+      metabolism.lifeB[offset + 1] = event.directionY;
+      metabolism.lifeB[offset + 2] = energy;
+      metabolism.lifeB[offset + 3] = event.seed;
+
+      if (!active) return;
+      metabolism.activeCount += 1;
+      if (event.kind > 0) metabolism.growthCount += 1;
+      else metabolism.decayCount += 1;
+
+      if (
+        pointer.hasMoved
+        && !event.signalled
+        && progress > 0.24
+        && progress < 0.62
+      ) {
+        const eventPosition = getEventScreenPosition(event);
+        const distance = Math.hypot(pointer.x - eventPosition.x, pointer.y - eventPosition.y);
+        if (distance < 250) {
+          const didSpawn = spawnWave({
+            x: eventPosition.x,
+            y: eventPosition.y,
+            directionX: event.directionX,
+            directionY: event.directionY,
+            energy: 0.48 + event.energy * 0.22,
+            now,
+            kind: event.kind > 0 ? 'growth-transfer' : 'decay-transfer',
+            duration: randomBetween(3600, 5400),
+            reach: randomBetween(270, 390),
+          });
+          if (didSpawn) event.signalled = true;
+        }
+      }
+    });
+  }
+
+  function updateWaves(now) {
+    waves.waveA.fill(0);
+    waves.waveB.fill(0);
+    waves.items = waves.items.filter((wave) => (
+      (now - wave.startedAt) / wave.duration < 1.035
+    ));
+
+    waves.items.slice(0, WAVE_COUNT).forEach((wave, index) => {
+      const offset = index * 4;
+      const progress = clamp((now - wave.startedAt) / wave.duration, 0, 1);
+      waves.waveA[offset] = wave.x - window.innerWidth / 2;
+      waves.waveA[offset + 1] = wave.y - window.innerHeight / 2;
+      waves.waveA[offset + 2] = progress;
+      waves.waveA[offset + 3] = wave.energy;
+      waves.waveB[offset] = wave.directionX;
+      waves.waveB[offset + 1] = wave.directionY;
+      waves.waveB[offset + 2] = wave.reach;
+      waves.waveB[offset + 3] = wave.seed;
+    });
+  }
+
   function getSignalProgress(now) {
-    if (!presence.studyStartedAt || presence.study < 0.05) return 0;
-    return ((now - presence.studyStartedAt) % 3200) / 3200;
+    if (!waves.items.length) return 0;
+    return waves.items.reduce((maximum, wave) => {
+      const progress = clamp((now - wave.startedAt) / wave.duration, 0, 1);
+      return Math.max(maximum, progress);
+    }, 0);
   }
 
   function updateTelemetry(now, signalProgress) {
@@ -446,18 +898,28 @@
 
     nebulaCanvas.dataset.phase = phase;
     nebulaCanvas.dataset.life = lifeState;
-    nebulaCanvas.dataset.rhythm = rhythm.stage;
-    nebulaCanvas.dataset.rhythmProgress = rhythm.progress.toFixed(3);
-    nebulaCanvas.dataset.breath = rhythm.value.toFixed(3);
+    nebulaCanvas.dataset.rhythm = 'metabolic';
+    nebulaCanvas.dataset.rhythmProgress = '0.000';
+    nebulaCanvas.dataset.breath = '0.000';
     nebulaCanvas.dataset.gazeX = gaze.x.toFixed(2);
     nebulaCanvas.dataset.gazeY = gaze.y.toFixed(2);
     nebulaCanvas.dataset.awareness = presence.awareness.toFixed(3);
     nebulaCanvas.dataset.hold = presence.hold.toFixed(3);
     nebulaCanvas.dataset.study = presence.study.toFixed(3);
     nebulaCanvas.dataset.signal = signalProgress.toFixed(3);
+    nebulaCanvas.dataset.waveCount = String(waves.items.length);
+    nebulaCanvas.dataset.disturbance = pointer.disturbance.toFixed(3);
+    nebulaCanvas.dataset.pointerSpeed = pointer.speed.toFixed(1);
+    nebulaCanvas.dataset.stillness = pointer.stillness.toFixed(3);
+    nebulaCanvas.dataset.curiosity = curiosity.energy.toFixed(3);
+    nebulaCanvas.dataset.adaptation = curiosity.adaptation.toFixed(3);
+    nebulaCanvas.dataset.pupil = pupil.value.toFixed(3);
     nebulaCanvas.dataset.approach = presence.approach.toFixed(3);
-    nebulaCanvas.dataset.awakening = awakening.stage;
-    nebulaCanvas.dataset.awaken = awakening.value.toFixed(3);
+    nebulaCanvas.dataset.metabolism = String(metabolism.activeCount);
+    nebulaCanvas.dataset.growth = String(metabolism.growthCount);
+    nebulaCanvas.dataset.decay = String(metabolism.decayCount);
+    nebulaCanvas.dataset.awakening = 'metabolic';
+    nebulaCanvas.dataset.awaken = '0.000';
     nebulaCanvas.dataset.uptime = (now / 1000).toFixed(2);
   }
 
@@ -465,13 +927,14 @@
     const deltaSeconds = Math.min(0.04, Math.max(0.001, (now - lastFrame) / 1000));
     lastFrame = now;
 
-    pointer.speed = damp(pointer.speed, 0, 5.5, deltaSeconds);
-    computeAwakening(now);
-    computeRhythm(now / 1000);
+    updatePointerDynamics(deltaSeconds, now);
     updatePresence(deltaSeconds);
-    updateCuriosity(deltaSeconds, now);
+    updateStudy(deltaSeconds, now);
     updateGaze(deltaSeconds);
     updateApproach(deltaSeconds, now);
+    updateCuriosity(deltaSeconds, now);
+    updateMetabolism(now);
+    updateWaves(now);
     const signalProgress = getSignalProgress(now);
 
     if (nebula) {
@@ -480,13 +943,18 @@
         gazeY: gaze.y,
         pointerX: pointer.x - window.innerWidth / 2,
         pointerY: pointer.y - window.innerHeight / 2,
-        breath: rhythm.value,
-        hold: presence.hold,
+        flowVelocityX: pointer.velocityX,
+        flowVelocityY: pointer.velocityY,
+        disturbance: pointer.disturbance,
+        stillness: pointer.stillness,
         awareness: presence.awareness,
         study: presence.study,
-        signalProgress,
         approach: presence.approach,
-        awaken: awakening.value,
+        pupilDilation: pupil.value,
+        lifeA: metabolism.lifeA,
+        lifeB: metabolism.lifeB,
+        waveA: waves.waveA,
+        waveB: waves.waveB,
       });
       updateTelemetry(now, signalProgress);
     }
@@ -509,15 +977,37 @@
       lifeState,
       renderer: nebula && nebula.ready ? 'living-nebula' : 'fallback',
       textureMode: 'continuous',
-      rhythm: {
-        stage: rhythm.stage,
-        progress: rhythm.progress,
-        breath: rhythm.value,
-        duration: rhythm.duration,
+      rhythm: { stage: 'metabolic', progress: 0, breath: 0, duration: 0 },
+      metabolism: {
+        active: metabolism.activeCount,
+        growth: metabolism.growthCount,
+        decay: metabolism.decayCount,
+        events: metabolism.events.map((event) => event ? ({
+          kind: event.kind > 0 ? 'growth' : 'decay',
+          zoneIndex: event.zoneIndex,
+          startedAt: event.startedAt,
+          duration: event.duration,
+        }) : null),
       },
-      awakening: {
-        stage: awakening.stage,
-        value: awakening.value,
+      waves: waves.items.map((wave) => ({
+        id: wave.id,
+        kind: wave.kind,
+        progress: clamp((performance.now() - wave.startedAt) / wave.duration, 0, 1),
+        duration: wave.duration,
+        reach: wave.reach,
+      })),
+      pupil: { value: pupil.value, active: pupil.active, amplitude: pupil.amplitude },
+      curiosity: {
+        energy: curiosity.energy,
+        adaptation: curiosity.adaptation,
+        armed: curiosity.armed,
+      },
+      flow: {
+        speed: pointer.speed,
+        disturbance: pointer.disturbance,
+        stillness: pointer.stillness,
+        velocityX: pointer.velocityX,
+        velocityY: pointer.velocityY,
       },
       gaze: {
         x: gaze.x,

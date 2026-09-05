@@ -27,13 +27,15 @@
     uniform vec2 uGazePx;
     uniform vec2 uPointerPx;
     uniform float uTime;
-    uniform float uBreath;
-    uniform float uHold;
     uniform float uAwareness;
     uniform float uStudy;
-    uniform float uSignalProgress;
     uniform float uApproach;
-    uniform float uAwaken;
+    uniform float uPupilDilation;
+    uniform vec4 uFlow;
+    uniform vec4 uLifeA[3];
+    uniform vec4 uLifeB[3];
+    uniform vec4 uWaveA[3];
+    uniform vec4 uWaveB[3];
     uniform float uMotion;
 
     float luminance(vec3 color) {
@@ -114,84 +116,242 @@
         * middleResponse
         * uAwareness;
 
-      float breathStrength = uBreath * (1.0 - uHold * 0.72);
-      float spatialBreath = breathStrength
-        * (0.78 + 0.22 * sin(atan(metric.y, metric.x) * 3.0 + radius * 2.4));
-      float microRhythm = (
-        sin(uTime * 1.71 + radius * 5.1 + atan(metric.y, metric.x) * 2.0) * 0.12
-        + sin(uTime * 0.93 - radius * 3.7) * 0.055
-      ) * uMotion;
-      deformation += radial
-        * (spatialBreath + microRhythm)
-        * (pupilEdge * 0.024 + tissueResponse * 0.014);
+      float planetProtection = 1.0 - planetNeighborhood * 0.88;
 
-      float awakeningField = pupilEdge + middleResponse * 0.52;
+      // The pupil opens only when the CPU curiosity model emits one reaction.
+      // Autonomous life never drives this value, so idle time cannot pump it.
       deformation += radial
-        * uAwaken
-        * (pupilEdge * 0.025 + tissueResponse * 0.008);
+        * pupilEdge
+        * uPupilDilation
+        * 0.058
+        * planetProtection;
+
+      // Approaching gathers surrounding tissue without repeatedly scaling the pupil.
+      float gatheringField = smoothstep(0.68, 0.84, radius)
+        * (1.0 - smoothstep(1.42, 1.78, radius));
+      deformation -= radial
+        * gatheringField
+        * uApproach
+        * 0.018
+        * planetProtection;
       deformation += tangent
-        * sin(atan(metric.y, metric.x) * 4.0 - radius * 5.8)
-        * uAwaken
-        * middleResponse
-        * 0.0045;
+        * sin(atan(metric.y, metric.x) * 3.0 + radius * 4.2)
+        * gatheringField
+        * uApproach
+        * 0.004
+        * planetProtection;
 
-      float innerAfterwave = sin(uTime * 0.23 - radius * 7.5 + atan(metric.y, metric.x) * 1.7);
-      deformation += radial
-        * innerAfterwave
-        * 0.0032
-        * tissueResponse
-        * uMotion
-        * (1.0 - uHold * 0.6);
+      // Several asynchronous life events move energy through selected texture zones.
+      float lifeGrowth = 0.0;
+      float lifeDecay = 0.0;
+      float lifeResidue = 0.0;
+      vec2 lifeDeformation = vec2(0.0);
 
-      float membraneShear = sin(
-        uTime * 0.075
-        + radius * 5.2
-        + atan(metric.y, metric.x) * 2.6
-      );
-      deformation += tangent
-        * membraneShear
-        * 0.0042
-        * middleResponse
+      for (int i = 0; i < 3; i++) {
+        vec4 lifeA = uLifeA[i];
+        vec4 lifeB = uLifeB[i];
+        float lifeProgress = clamp(lifeA.z, 0.0, 1.0);
+        float lifeEnergy = lifeB.z;
+        float growthKind = step(0.0, lifeA.w);
+        float decayKind = 1.0 - growthKind;
+        vec2 lifeOrigin = vec2(lifeA.x * screenAspect, -lifeA.y);
+        vec2 lifeDirection = normalize(vec2(lifeB.x, -lifeB.y) + vec2(0.00001));
+        vec2 lifeNormal = vec2(-lifeDirection.y, lifeDirection.x);
+        vec2 lifeDelta = metric - lifeOrigin;
+        float lifeAlong = dot(lifeDelta, lifeDirection);
+        float lifeAcross = dot(lifeDelta, lifeNormal);
+        float lifeTravel = mix(-0.075, 0.115, smoothstep(0.05, 0.70, lifeProgress));
+        float lifeLength = mix(0.21, 0.34, growthKind);
+        float lifeWidth = mix(0.16, 0.125, growthKind);
+        float lifeShape = length(vec2(
+          (lifeAlong - lifeTravel) / lifeLength,
+          lifeAcross / lifeWidth
+        ));
+        float lifeBody = 1.0 - smoothstep(0.34, 1.0, lifeShape);
+        float branchTexture = 0.54
+          + sin(lifeAcross * 61.0 + lifeAlong * 17.0 + lifeB.w * 18.0) * 0.43;
+        float branchGate = smoothstep(0.22, 0.76, branchTexture);
+        float lifeAttack = smoothstep(0.0, 0.10, lifeProgress);
+        float lifeRelease = 1.0 - smoothstep(0.72, 1.0, lifeProgress);
+        float lifeEnvelope = lifeAttack * lifeRelease * lifeEnergy;
+        float structuredLife = lifeBody * (0.38 + branchGate * 0.62) * lifeEnvelope;
+        float breakup = smoothstep(0.42, 0.92, lifeProgress);
+        float brokenLife = lifeBody
+          * mix(0.72, branchGate, breakup)
+          * lifeEnvelope;
+
+        lifeGrowth += structuredLife * growthKind;
+        lifeDecay += brokenLife * decayKind;
+        lifeResidue += lifeBody
+          * decayKind
+          * smoothstep(0.38, 0.88, lifeProgress)
+          * lifeRelease
+          * lifeEnergy;
+        lifeDeformation += lifeDirection
+          * structuredLife
+          * growthKind
+          * 0.030;
+        lifeDeformation += lifeNormal
+          * sin(lifeAlong * 37.0 - lifeAcross * 23.0 + lifeB.w * 11.0)
+          * brokenLife
+          * decayKind
+          * 0.018;
+        lifeDeformation -= lifeDirection
+          * brokenLife
+          * decayKind
+          * 0.009;
+      }
+
+      deformation += lifeDeformation
+        * outerAnchor
+        * planetProtection
         * uMotion;
-
-      float gatheringField = smoothstep(0.66, 0.84, radius)
-        * (1.0 - smoothstep(1.48, 1.83, radius));
-      deformation += radial
-        * (pupilEdge * 0.040 - gatheringField * 0.026)
-        * uApproach;
 
       vec2 pointerMetric = vec2(uPointerPx.x, -uPointerPx.y)
         * 2.0 / max(1.0, uResolution.y);
       vec2 towardPointer = pointerMetric - metric;
       float pointerDistance = length(towardPointer);
-      float localInterest = 1.0 - smoothstep(0.07, 0.72, pointerDistance);
+      float localInterest = 1.0 - smoothstep(0.06, 0.73, pointerDistance);
       float curiosityField = localInterest * tissueResponse * uStudy;
       deformation += towardPointer / max(pointerDistance, 0.0001)
         * curiosityField
-        * 0.040;
+        * 0.042
+        * planetProtection;
 
-      float signalRadius = mix(0.035, 0.82, uSignalProgress);
-      float signalWidth = mix(0.045, 0.105, uSignalProgress);
-      float signalAngle = atan(towardPointer.y, towardPointer.x);
-      float signalBranchField = 0.50
-        + sin(signalAngle * 4.5 + pointerDistance * 10.0 + radius * 4.0) * 0.30
-        + sin(signalAngle * -7.0 + pointerDistance * 17.0) * 0.20;
-      float signalBranchGate = smoothstep(0.24, 0.78, signalBranchField);
-      float signalFront = (1.0 - smoothstep(
-        signalWidth * 0.32,
-        signalWidth,
-        abs(pointerDistance - signalRadius)
-      )) * (0.28 + signalBranchGate * 0.72);
-      deformation -= towardPointer / max(pointerDistance, 0.0001)
-        * signalFront
+      // Immediate pointer pressure: a narrow front, sideways refraction, and a long wake.
+      vec2 flowDirection = normalize(vec2(uFlow.x, -uFlow.y) + vec2(0.00001));
+      vec2 flowNormal = vec2(-flowDirection.y, flowDirection.x);
+      vec2 flowDeltaPx = (metric - pointerMetric) * max(1.0, uResolution.y) * 0.5;
+      float flowAlong = dot(flowDeltaPx, flowDirection);
+      float flowAcross = dot(flowDeltaPx, flowNormal);
+      float flowSpeed = length(uFlow.xy);
+      float speedBlend = smoothstep(120.0, 980.0, flowSpeed);
+      float flowRadius = mix(174.0, 92.0, speedBlend);
+      float wakeLength = mix(155.0, 350.0, speedBlend);
+      float coreDistance = length(vec2(
+        flowAlong / max(1.0, flowRadius * 0.82),
+        flowAcross / max(1.0, flowRadius)
+      ));
+      float flowCore = 1.0 - smoothstep(0.18, 1.0, coreDistance);
+      float frontPressure = flowCore
+        * smoothstep(-flowRadius * 0.18, flowRadius * 0.16, flowAlong)
+        * (1.0 - smoothstep(flowRadius * 0.16, flowRadius * 0.92, flowAlong));
+      float sideRefraction = flowCore
+        * (1.0 - smoothstep(0.0, flowRadius, abs(flowAcross)))
+        * (1.0 - frontPressure * 0.45);
+      float wakeBody = smoothstep(-wakeLength, -flowRadius * 0.08, flowAlong)
+        * (1.0 - smoothstep(-flowRadius * 0.08, flowRadius * 0.16, flowAlong))
+        * (1.0 - smoothstep(flowRadius * 0.22, flowRadius, abs(flowAcross)));
+      float wakeFilament = 0.64 + 0.36 * sin(
+        flowAcross * 0.052
+        - flowAlong * 0.018
+        + uTime * 0.72
+      );
+      float flowDisplacementPx = mix(16.0, 7.0, speedBlend) * uFlow.z;
+      vec2 flowDeformation = flowDirection
+        * frontPressure
+        * flowDisplacementPx;
+      flowDeformation += flowNormal
+        * sign(flowAcross)
+        * sideRefraction
+        * flowDisplacementPx
+        * 0.58;
+      flowDeformation += flowNormal
+        * wakeBody
+        * wakeFilament
+        * flowDisplacementPx
+        * 0.42;
+      flowDeformation -= flowDirection
+        * wakeBody
+        * flowDisplacementPx
+        * 0.18;
+      deformation += flowDeformation
+        * 2.0 / max(1.0, uResolution.y)
+        * outerAnchor
+        * planetProtection
+        * uMotion;
+
+      // Persistent wave packets finish their own lives and can overlap.
+      float waveFrontAccum = 0.0;
+      float waveShadowAccum = 0.0;
+      vec2 waveDeformation = vec2(0.0);
+
+      for (int i = 0; i < 3; i++) {
+        vec4 waveA = uWaveA[i];
+        vec4 waveB = uWaveB[i];
+        float waveProgress = clamp(waveA.z, 0.0, 1.0);
+        float waveEnergy = waveA.w;
+        vec2 waveOrigin = vec2(waveA.x, -waveA.y)
+          * 2.0 / max(1.0, uResolution.y);
+        vec2 waveDeltaPx = (metric - waveOrigin) * max(1.0, uResolution.y) * 0.5;
+        vec2 waveDirection = normalize(vec2(waveB.x, -waveB.y) + vec2(0.00001));
+        vec2 waveNormal = vec2(-waveDirection.y, waveDirection.x);
+        float waveAlong = dot(waveDeltaPx, waveDirection);
+        float waveAcross = dot(waveDeltaPx, waveNormal);
+        float directionBias = mix(0.88, 0.70, smoothstep(0.0, waveB.z, max(0.0, waveAlong)));
+        float waveAngle = atan(waveAcross, waveAlong);
+        float irregularDistance = length(vec2(
+          waveAlong * directionBias,
+          waveAcross * (1.04 + sin(waveAngle * 3.0 + waveB.w * 9.0) * 0.10)
+        ));
+        irregularDistance += sin(
+          waveAngle * 5.0
+          + irregularDistance * 0.025
+          + waveB.w * 14.0
+        ) * 9.0;
+        float travelEase = 1.0 - pow(1.0 - waveProgress, 2.15);
+        float waveRadiusPx = mix(10.0, waveB.z, travelEase);
+        float waveWidthPx = mix(18.0, 66.0, waveProgress);
+        float waveFront = 1.0 - smoothstep(
+          waveWidthPx * 0.24,
+          waveWidthPx,
+          abs(irregularDistance - waveRadiusPx)
+        );
+        float waveBranches = 0.54
+          + sin(waveAngle * 4.5 + irregularDistance * 0.031 + waveB.w * 17.0) * 0.43;
+        float waveBranchGate = smoothstep(0.22, 0.76, waveBranches);
+        float waveAttack = smoothstep(0.0, 0.055, waveProgress);
+        float waveRelease = 1.0 - smoothstep(0.48, 1.0, waveProgress);
+        float waveBreakup = smoothstep(0.58, 0.94, waveProgress);
+        float fragmentGate = mix(
+          1.0,
+          smoothstep(0.34, 0.72, waveBranches),
+          waveBreakup
+        );
+        float waveEnvelope = waveEnergy * waveAttack * waveRelease;
+        float waveField = waveFront
+          * (0.26 + waveBranchGate * 0.74)
+          * fragmentGate
+          * waveEnvelope;
+        float waveShadow = 1.0 - smoothstep(
+          waveWidthPx * 0.32,
+          waveWidthPx * 1.25,
+          abs(irregularDistance - max(0.0, waveRadiusPx - waveWidthPx * 1.08))
+        );
+        waveShadow *= (0.20 + waveBranchGate * 0.80) * waveEnvelope;
+
+        vec2 waveRadial = waveDeltaPx / max(length(waveDeltaPx), 0.0001);
+        waveDeformation -= waveRadial
+          * waveField
+          * mix(11.0, 4.0, waveProgress);
+        waveDeformation += waveNormal
+          * sin(waveAngle * 3.0 + waveB.w * 12.0)
+          * waveField
+          * mix(4.8, 2.0, waveProgress);
+        waveFrontAccum += waveField;
+        waveShadowAccum += waveShadow;
+      }
+
+      deformation += waveDeformation
+        * 2.0 / max(1.0, uResolution.y)
         * tissueResponse
-        * uStudy
-        * 0.024;
+        * planetProtection
+        * uMotion;
 
       vec2 planetDrift = vec2(
-        sin(uTime * 0.031 + baseSourceUv.y * 13.0),
-        cos(uTime * 0.024 + baseSourceUv.x * 11.0)
-      ) * 0.0028 * planetNeighborhood * uMotion;
+        sin(uTime * 0.027 + baseSourceUv.y * 13.0),
+        cos(uTime * 0.021 + baseSourceUv.x * 11.0)
+      ) * 0.0017 * planetNeighborhood * uMotion;
 
       deformation *= outerAnchor;
       deformation += planetDrift;
@@ -220,53 +380,50 @@
       vec3 color = source.rgb;
       color = mix(color, soft, veil * 0.07);
 
-      float lifeGain = 1.0
-        + breathStrength * tissueResponse * 0.075
-        + uAwaken * awakeningField * 0.052
-        + uStudy * localInterest * filamentRidge * 0.38
-        + uStudy * localInterest * smoothstep(0.020, 0.27, sourceLight) * 0.110
-        + uApproach * pupilEdge * 0.065;
-      color *= lifeGain;
+      float signalTexture = smoothstep(0.035, 0.36, softLight + filamentRidge * 2.1);
+      float growthTexture = lifeGrowth
+        * signalTexture
+        * (0.42 + filamentRidge * 3.2);
+      float decayTexture = lifeDecay
+        * signalTexture
+        * (0.48 + veil * 2.4);
+      float residueTexture = lifeResidue
+        * smoothstep(0.018, 0.30, softLight + filamentRidge * 1.4);
+      float fogAmount = clamp(decayTexture * 0.31 + residueTexture * 0.22, 0.0, 0.40);
+      color = mix(color, soft, fogAmount);
+      color *= 1.0
+        + growthTexture * 0.36
+        - decayTexture * 0.24
+        - residueTexture * 0.075;
       color += vec3(0.58, 0.63, 0.70)
         * filamentRidge
-        * (
-          0.11
-          + abs(breathStrength) * 0.10
-          + uAwaken * 0.075
-          + uStudy * localInterest * 0.16
-        );
+        * (0.10 + growthTexture * 0.56);
 
-      float signalTexture = smoothstep(0.035, 0.36, softLight + filamentRidge * 2.1);
-      float branchPattern = 0.5 + 0.5 * sin(
-        signalAngle * 4.5
-        + radius * 6.0
-        + sourceLight * 14.0
-      );
-      float branchGate = smoothstep(0.18, 0.86, branchPattern);
-      float diffusionGlow = signalFront
-        * signalTexture
-        * (0.32 + branchGate * 0.68)
-        * uStudy;
-      float signalShadowFront = 1.0 - smoothstep(
-        signalWidth * 0.45,
-        signalWidth * 1.35,
-        abs(pointerDistance - max(0.0, signalRadius - signalWidth * 1.15))
-      );
-      float diffusionShadow = signalShadowFront
-        * signalTexture
-        * (0.22 + signalBranchGate * 0.78)
-        * uStudy;
+      float diffusionGlow = waveFrontAccum * signalTexture;
+      float diffusionShadow = waveShadowAccum * signalTexture;
       float localRecognition = localInterest
         * signalTexture
-        * (0.55 + signalBranchGate * 0.45)
         * uStudy;
-      color *= 1.0 - diffusionShadow * 0.072;
+      float flowSheen = (
+        frontPressure * 0.74
+        + sideRefraction * 0.26
+        + wakeBody * wakeFilament * 0.20
+      ) * uFlow.z * signalTexture;
+      color *= 1.0 - diffusionShadow * 0.085;
       color += vec3(0.56, 0.63, 0.71)
         * diffusionGlow
-        * 0.35;
+        * 0.42;
       color += vec3(0.49, 0.55, 0.63)
         * localRecognition
-        * 0.072;
+        * 0.085;
+      color += vec3(0.52, 0.59, 0.66)
+        * flowSheen
+        * 0.16;
+      color += vec3(0.57, 0.62, 0.68)
+        * filamentRidge
+        * pupilEdge
+        * uPupilDilation
+        * 0.16;
 
       float outerFocus = smoothstep(0.92, 1.72, radius);
       color *= 1.0 - outerFocus * uApproach * 0.038;
@@ -296,11 +453,12 @@
         * inhabited
         * 0.34;
 
-      float heldStill = uHold
+      float heldStill = uStudy
+        * localInterest
         * tissueResponse
         * smoothstep(0.02, 0.32, sourceLight)
         * uMotion;
-      color *= 1.0 - heldStill * 0.045;
+      color *= 1.0 - heldStill * 0.026;
 
       gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
     }
@@ -371,6 +529,10 @@
       this.dpr = 1;
       this.imageWidth = IMAGE_WIDTH;
       this.imageHeight = IMAGE_HEIGHT;
+      this.emptyLifeA = new Float32Array(12);
+      this.emptyLifeB = new Float32Array(12);
+      this.emptyWaveA = new Float32Array(12);
+      this.emptyWaveB = new Float32Array(12);
 
       this.handleContextLost = (event) => {
         event.preventDefault();
@@ -459,13 +621,15 @@
         gazePx: gl.getUniformLocation(program, 'uGazePx'),
         pointerPx: gl.getUniformLocation(program, 'uPointerPx'),
         time: gl.getUniformLocation(program, 'uTime'),
-        breath: gl.getUniformLocation(program, 'uBreath'),
-        hold: gl.getUniformLocation(program, 'uHold'),
         awareness: gl.getUniformLocation(program, 'uAwareness'),
         study: gl.getUniformLocation(program, 'uStudy'),
-        signalProgress: gl.getUniformLocation(program, 'uSignalProgress'),
         approach: gl.getUniformLocation(program, 'uApproach'),
-        awaken: gl.getUniformLocation(program, 'uAwaken'),
+        pupilDilation: gl.getUniformLocation(program, 'uPupilDilation'),
+        flow: gl.getUniformLocation(program, 'uFlow'),
+        lifeA: gl.getUniformLocation(program, 'uLifeA[0]'),
+        lifeB: gl.getUniformLocation(program, 'uLifeB[0]'),
+        waveA: gl.getUniformLocation(program, 'uWaveA[0]'),
+        waveB: gl.getUniformLocation(program, 'uWaveB[0]'),
         motion: gl.getUniformLocation(program, 'uMotion'),
       };
     }
@@ -474,7 +638,7 @@
       const width = Math.max(1, this.canvas.clientWidth || window.innerWidth);
       const height = Math.max(1, this.canvas.clientHeight || window.innerHeight);
       const compact = Math.min(width, height) < 700;
-      const dprLimit = compact ? 1.3 : 1.55;
+      const dprLimit = compact ? 1.15 : 1.25;
       const dpr = Math.min(window.devicePixelRatio || 1, dprLimit);
       const pixelWidth = Math.round(width * dpr);
       const pixelHeight = Math.round(height * dpr);
@@ -512,13 +676,21 @@
       gl.uniform2f(locations.gazePx, state.gazeX || 0, state.gazeY || 0);
       gl.uniform2f(locations.pointerPx, state.pointerX || 0, state.pointerY || 0);
       gl.uniform1f(locations.time, time);
-      gl.uniform1f(locations.breath, state.breath || 0);
-      gl.uniform1f(locations.hold, state.hold || 0);
       gl.uniform1f(locations.awareness, state.awareness || 0);
       gl.uniform1f(locations.study, state.study || 0);
-      gl.uniform1f(locations.signalProgress, state.signalProgress || 0);
       gl.uniform1f(locations.approach, state.approach || 0);
-      gl.uniform1f(locations.awaken, state.awaken || 0);
+      gl.uniform1f(locations.pupilDilation, state.pupilDilation || 0);
+      gl.uniform4f(
+        locations.flow,
+        state.flowVelocityX || 0,
+        state.flowVelocityY || 0,
+        state.disturbance || 0,
+        state.stillness || 0
+      );
+      gl.uniform4fv(locations.lifeA, state.lifeA || this.emptyLifeA);
+      gl.uniform4fv(locations.lifeB, state.lifeB || this.emptyLifeB);
+      gl.uniform4fv(locations.waveA, state.waveA || this.emptyWaveA);
+      gl.uniform4fv(locations.waveB, state.waveB || this.emptyWaveB);
       gl.uniform1f(locations.motion, this.reducedMotion ? 0 : 1);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
