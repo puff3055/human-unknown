@@ -1,71 +1,37 @@
-# HUMAN UNKNOWN V3.4 声音首页 Design QA
+# HUMAN UNKNOWN 首页 V4 Design QA
 
-## Findings
+> 日期：2026-09-06
+> 对象：`codex/homepage-v4`／`v4.0.0-rc.1`
+> 结论：**客观测试通过；声音主观验收待用户真实试听。**
 
-- [P1] 最新本地页面无法由自动化浏览器重新载入，因此缺少 V3.4 的浏览器渲染截图与真实控制台记录。
-  - Location: `http://127.0.0.1:4173/`, `#soundToggle`.
-  - Evidence: 本地服务器与所有首页资源均返回 HTTP 200，但应用内浏览器的 URL 安全策略拒绝重新载入该本地地址。现有最新截图是 V3.3，不包含新的声音按钮，不能冒充 V3.4 证据。
-  - Impact: 无法在交付前独立确认声音图标在真实桌面与移动视口中的最终位置、对比度、点击状态和控制台表现。
-  - Fix: 用户在现有本地预览中刷新并试听；浏览器访问恢复后，再捕获同尺寸 V3.4 页面并完成同屏比较。
+## 基准与边界
 
-- [P1] 声音的主观听感仍需要真实扬声器或耳机验收。
-  - Location: `living-soundscape.js` 的存在层、代谢层、接触层和好奇反应。
-  - Evidence: 自动化契约测试已确认声音图、状态参数、开关、持久化、键盘切换和交互映射均工作，但当前工具不能监听设备实际输出。
-  - Impact: 不能替用户判断最终音量、低频可闻度、质感是否足够陌生，或某一层是否抢占视觉体验。
-  - Fix: 用耳机试听静止、移动、停留、靠近与离开五个连续状态后调整混音。
+- 视觉母版：`00-项目参考材料/首页素材1.png`（1672×941）。
+- V4 保留星云连续纹理、球体、瞳孔、凝视、水波和生长／消亡，不是纯粒子页。
+- 本轮只到 `humanunknown:homepage-exit` 黑场，未创建植物世界。
+- `.contact-cursor` 的视觉造型未改；只提供页面状态契约。
 
-## Comparison Target
+## 自动契约
 
-- Source visual truth: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/00-项目参考材料/首页素材1.png`
-- Source dimensions: 1672 × 941 px.
-- Last verified implementation baseline: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/02-代码仓库/qa/v3.3/01-idle-growth.png`, 1672 × 941 px at a 1672 × 941 CSS viewport.
-- Intended V3.4 implementation: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/02-代码仓库/index.html`.
-- V3.4 implementation screenshot: unavailable because local browser navigation was blocked.
-- State intended for comparison: sound off on first visit, top-right crossed-speaker icon visible; sound on after activation, same button showing speaker waves.
-- Full-view comparison evidence: blocked for V3.4. The V3.3 source/baseline comparison remains in `qa/v3.3/04-reference-comparison.png` but does not validate the new control.
-- Focused comparison evidence: blocked; a focused crop of the top-right sound button has not been captured.
+- `node qa/homepage-v4-contract-test.mjs`：通过。覆盖四句原文与顺序、标题四秒可读和首次行为门、热区、停留回落、触摸抬起不继续推进、边界近静音、黑场出口与 reduced-motion。
+- `node qa/soundscape-contract-test.mjs`：通过。覆盖开关、手势启声、状态映射、低频架构，并防止旧 `airNoise` / `worldNoise` / white-noise buffer / compressor 回归。
+- `node --check app.js encounter-machine.js living-nebula.js living-soundscape.js`：通过。
 
-## Verified Without Browser Rendering
+## 内置浏览器证据
 
-- `node --check` passes for `app.js` and `living-soundscape.js`.
-- `qa/soundscape-contract-test.mjs` passes the off → on → interaction → off path, persisted armed state, gesture unlock, `M` keyboard control, audio-level telemetry, all three metabolism voices, contact, stillness, approach, and icon swapping.
-- Both Tabler SVG assets pass XML validation and are served as `image/svg+xml`.
-- Homepage, audio engine, on icon, and off icon return HTTP 200 from the active local preview.
-- The toggle uses a native button with a 44 × 44 px target, `aria-label`, `aria-pressed`, a polite live status, visible focus outline, and a disabled fallback.
-- The sound button's pointer press is excluded from first-contact logic, so operating audio does not falsely trigger the organism.
-- The audio graph is local and procedural; there are no remote audio dependencies or delayed media downloads.
+- 桌面 1440×900：短黑场后黑位显影；无输入时保持 `opening / title-hold`，无旁白、无自动播完。当前后台采样约 37 FPS，未见明显视觉卡顿。
+- 真实指针链：`contact`／“在这里” → `near`／“对，在这里” → `noticed`／“它注意到你了” → `aligned`／“放入你的眼睛”。
+- 离开核心时 `data-hold` 从 `0.448` 柔和回落到 `0.182`；重新停留后完成 `handoff`，`data-exit-ready="true"`。
+- 声音按钮真实点击可切换 off/on；键盘动作如未被浏览器视为启声手势，状态在 0.9 秒后回到 `armed`，不会卡在 `starting`。
+- 移动 390×844：`innerWidth = bodyScrollWidth = mainClientWidth = 390`，无横向溢出。
+- reduced-motion：使用 `static-reduced-motion`，自主代谢和水波为 0，保留文案可读时间、热区与停留逻辑。
+- 最终桌面与移动检查中，控制台 warning/error 均为 0。
 
-## Required Fidelity Surfaces
+当前截图在 `qa/v4/`；V3.x 截图只是历史证据。
 
-- Typography: provisionally unchanged — no title, subtitle, guide font, size, weight, spacing, or copy rule was edited; fresh browser evidence is still missing.
-- Spacing/layout: blocked — only a fixed top-right control was added, but its actual rendered relationship to the source has not been captured.
-- Colors/tokens: provisionally aligned — the button uses the existing `--paper` silver and black transparency; browser-rendered contrast is unverified.
-- Image quality: passed for source preservation — nebula, pupil, planet texture, and WebGL source paths are unchanged.
-- Icon fidelity: provisionally passed — real Tabler Icons assets are used under MIT license, not CSS art, Emoji, text glyphs, or handcrafted inline SVG; visual rendering is unverified.
-- Copy/content: passed — existing title, subtitle, and guidance are unchanged; no menu, HUD, or explanatory text was added.
-- Accessibility: contract passed, browser assistive-state verification pending.
-- Interactions: contract passed, real audio output and browser console verification pending.
+## 待用户验收
 
-## Comparison History
+- 用真实耳机和普通扬声器试听：静止负空间、35–55 Hz 重量、80–120 Hz 泛音可感度、移动水感长尾、停留前留白、一次性注意张开、核心收拢、边界近静音与下弯坠落。
+- 自动测试不代替这项主观判断，当前不记为“用户已验收”。
 
-- V3.3 was visually passed against the supplied source at equal 1672 × 941 dimensions.
-- V3.4 intentionally adds one new top-right sound control while leaving every previously verified visual element unchanged.
-- No V3.4 visual iteration can be claimed until the current implementation is captured. No screenshot was fabricated from the old page or composited with the icon.
-
-## Implementation Checklist
-
-- [x] Visible off icon with crossed speaker
-- [x] Visible on icon with sound waves
-- [x] Native accessible toggle and keyboard shortcut
-- [x] Browser-autoplay-safe activation and saved preference
-- [x] Independent existence, metabolism, contact, stillness, approach, and curiosity layers
-- [x] Growth, decay, and transfer tied to the corresponding visual event data
-- [x] Soft master fades on enable, disable, and hidden tab
-- [x] Local icon assets and third-party license notice
-- [x] Syntax, XML, HTTP, and audio-state contract checks
-- [ ] Fresh desktop and mobile browser screenshots
-- [ ] Browser console check
-- [ ] Real-device listening pass
-- [ ] Same-surface V3.4 source and implementation comparison
-
-final result: blocked
+final result: objective pass / subjective sound review pending

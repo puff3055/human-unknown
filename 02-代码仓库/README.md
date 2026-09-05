@@ -4,17 +4,20 @@
 
 开始代码任务前先阅读根目录 [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)。它记录当前分支、标签、已实现能力和验收缺口；不要仅凭文件更新时间判断版本。
 
-下面的“当前运行入口”描述 `feature/sonic-contact-v3.4`／`v3.4.0-rc.1`。如果当前检出分支里看不到 `living-nebula.js` 或 `living-soundscape.js`，说明你仍在较旧的页面实现上，应先按项目状态切换基线，而不是另写一套替代文件。
+下面的“当前运行入口”描述 `codex/homepage-v4`／`v4.0.0-rc.1`。V4 从 `v3.4.0-rc.1` 与产品文档基线继续实现；不要从旧入口重写替代页面。
 
 ## 当前运行入口
 
 - `index.html`：首页入口。
-- `app.js`：首页状态与交互编排。
+- `encounter-machine.js`：V4 开场、四句行为门、热区、停留与黑场出口状态机。
+- `app.js`：首页输入、生命反应、状态契约与交互编排。
 - `living-nebula.js`：活体星云／瞳孔渲染。
-- `living-soundscape.js`：V3.4 程序化声音与声音状态。
+- `living-soundscape.js`：V4 稀疏低频程序化声场与声音状态。
 - `style.css`：页面布局、标题、提示与声音开关样式。
 - `design-qa.md`：当前已完成和仍缺失的验证。
-- `qa/`：分版本 QA 证据与检查脚本；旧截图不代表当前页面。
+- `qa/homepage-v4-contract-test.mjs`：V4 可执行交互状态机契约。
+- `qa/soundscape-contract-test.mjs`：V4 声音图与开关契约。
+- `qa/v4/`：当前桌面、移动、阶段与 reduced-motion 浏览器证据。
 
 ## 非当前入口
 
