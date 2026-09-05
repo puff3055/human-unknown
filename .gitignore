@@ -5,3 +5,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+02-代码仓库/.opendeploy/attempts/
+02-代码仓库/.opendeploy/deploy-attempts.jsonl
+02-代码仓库/.opendeploy/plan.json
+02-代码仓库/.opendeploy/*credentials*.json
+02-代码仓库/.opendeploy/*secret*.json
+02-代码仓库/.opendeploy/*env*.json

@@ -1,0 +1,13 @@
+.git
+.DS_Store
+node_modules
+.opendeploy/attempts/
+.opendeploy/deploy-attempts.jsonl
+.opendeploy/*credentials*.json
+.opendeploy/*secret*.json
+.opendeploy/*env*.json
+archive/
+qa/
+sketch/
+README.md
+design-qa.md
