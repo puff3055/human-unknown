@@ -1,71 +1,69 @@
-# HUMAN UNKNOWN V3.4 声音首页 Design QA
+# HUMAN UNKNOWN｜世界 1 候选版 Design QA
 
-## Findings
+> 验收日期：2026-09-06
+> 分支：`codex/world1-implementation`
+> 目标尺寸：桌面 1672 × 941；移动端 390 × 844
+> 结果：视觉与功能自动验收通过，等待用户主观体验验收。
 
-- [P1] 最新本地页面无法由自动化浏览器重新载入，因此缺少 V3.4 的浏览器渲染截图与真实控制台记录。
-  - Location: `http://127.0.0.1:4173/`, `#soundToggle`.
-  - Evidence: 本地服务器与所有首页资源均返回 HTTP 200，但应用内浏览器的 URL 安全策略拒绝重新载入该本地地址。现有最新截图是 V3.3，不包含新的声音按钮，不能冒充 V3.4 证据。
-  - Impact: 无法在交付前独立确认声音图标在真实桌面与移动视口中的最终位置、对比度、点击状态和控制台表现。
-  - Fix: 用户在现有本地预览中刷新并试听；浏览器访问恢复后，再捕获同尺寸 V3.4 页面并完成同屏比较。
+## 结论
 
-- [P1] 声音的主观听感仍需要真实扬声器或耳机验收。
-  - Location: `living-soundscape.js` 的存在层、代谢层、接触层和好奇反应。
-  - Evidence: 自动化契约测试已确认声音图、状态参数、开关、持久化、键盘切换和交互映射均工作，但当前工具不能监听设备实际输出。
-  - Impact: 不能替用户判断最终音量、低频可闻度、质感是否足够陌生，或某一层是否抢占视觉体验。
-  - Fix: 用耳机试听静止、移动、停留、靠近与离开五个连续状态后调整混音。
+- 六张 1672 × 941 PNG 以原始文件直接作为场景底图；实现副本与 `00-项目参考材料/01-世界1/` 的 SHA-256 一致。
+- 桌面端逐幕同屏对照通过：构图、字体、色彩、人物、装饰和图像清晰度没有被重绘或替换。
+- 首页→中央停留→瞳孔吸入→六幕→再次体验／返回入口可完整走通。
+- 第二、三、五幕具有真实因果状态；`growth`、`response`、`descent`、`flow` 与同一个 `signalId` 跨幕连续。
+- 桌面指针、触摸尺寸操作条、单次键盘唤起、完整键盘推进、减少动态、静音、暂停、重玩和返回路径均通过。
+- 本轮浏览器控制台 `warn`／`warning`／`error` 记录为空。
+- 没有未解决的 P0、P1 或 P2 设计问题。
 
-## Comparison Target
+## 逐幕对照
 
-- Source visual truth: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/00-项目参考材料/首页素材1.png`
-- Source dimensions: 1672 × 941 px.
-- Last verified implementation baseline: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/02-代码仓库/qa/v3.3/01-idle-growth.png`, 1672 × 941 px at a 1672 × 941 CSS viewport.
-- Intended V3.4 implementation: `/Users/kongxueli/Desktop/coding/13-HUMANUNKNOWN/02-代码仓库/index.html`.
-- V3.4 implementation screenshot: unavailable because local browser navigation was blocked.
-- State intended for comparison: sound off on first visit, top-right crossed-speaker icon visible; sound on after activation, same button showing speaker waves.
-- Full-view comparison evidence: blocked for V3.4. The V3.3 source/baseline comparison remains in `qa/v3.3/04-reference-comparison.png` but does not validate the new control.
-- Focused comparison evidence: blocked; a focused crop of the top-right sound button has not been captured.
+同屏证据将原始视觉母版与真实浏览器截图放在同一画面中；两侧均由 1672 × 941 图像等比缩放：
 
-## Verified Without Browser Rendering
+- [第 1 幕对照](qa/world1/compare-scene-01.png)：底图与母版一致；系统将 `THE GREEN BODY` 仅视为本幕诗性题名。
+- [第 2 幕对照](qa/world1/compare-scene-02.png)：母版构图不变；仅增加随输入推进的同一光点和真实 `02 / 06` 状态。
+- [第 3 幕对照](qa/world1/compare-scene-03.png)：生长状态延续；右下旧 `01 / 05` 以局部渐隐遮罩替换为 `03 / 06`。
+- [第 4 幕对照](qa/world1/compare-scene-04.png)：回应状态延续；右下旧 `01 / 04` 以局部渐隐遮罩替换为 `04 / 06`。
+- [第 5 幕对照](qa/world1/compare-scene-05.png)：左右区域保持同一生命的资源流动，不设输赢；左下旧页码局部替换为 `05 / 06`。
+- [第 6 幕对照](qa/world1/compare-scene-06.png)：原“前往下一章”位置被真实的“再次体验／返回入口”覆盖；候选灵感卡片保留。
 
-- `node --check` passes for `app.js` and `living-soundscape.js`.
-- `qa/soundscape-contract-test.mjs` passes the off → on → interaction → off path, persisted armed state, gesture unlock, `M` keyboard control, audio-level telemetry, all three metabolism voices, contact, stillness, approach, and icon swapping.
-- Both Tabler SVG assets pass XML validation and are served as `image/svg+xml`.
-- Homepage, audio engine, on icon, and off icon return HTTP 200 from the active local preview.
-- The toggle uses a native button with a 44 × 44 px target, `aria-label`, `aria-pressed`, a polite live status, visible focus outline, and a disabled fallback.
-- The sound button's pointer press is excluded from first-contact logic, so operating audio does not falsely trigger the organism.
-- The audio graph is local and procedural; there are no remote audio dependencies or delayed media downloads.
+## 发现与修复记录
 
-## Required Fidelity Surfaces
+- **[P2][已修复] 第 3–5 幕旧页码与实时六幕页码发生视觉冲突。**
+  - 证据：母版分别烘焙了 `01 / 05`、`01 / 04` 和旧纵向页码；第一轮大面积实色遮罩损伤了右下／左下环境细节。
+  - 修复：在 `world-one.css` 中改为只覆盖旧文字范围的小型方向渐隐遮罩，保留母版的线条与环境，实时显示 `03 / 06`–`05 / 06`。
+- **[P2][已修复] 竖屏裁切使第 6 幕三张来源卡只剩局部，触摸用户无法可靠选择。**
+  - 证据：390 × 844 首轮截图中卡片只显示中间局部，热点与画面坐标不再对应。
+  - 修复：竖屏下隐藏失配热点，在原卡片区域上方显示三个 48px 高的真实候选来源按钮；桌面仍使用母版中的卡片位置。
 
-- Typography: provisionally unchanged — no title, subtitle, guide font, size, weight, spacing, or copy rule was edited; fresh browser evidence is still missing.
-- Spacing/layout: blocked — only a fixed top-right control was added, but its actual rendered relationship to the source has not been captured.
-- Colors/tokens: provisionally aligned — the button uses the existing `--paper` silver and black transparency; browser-rendered contrast is unverified.
-- Image quality: passed for source preservation — nebula, pupil, planet texture, and WebGL source paths are unchanged.
-- Icon fidelity: provisionally passed — real Tabler Icons assets are used under MIT license, not CSS art, Emoji, text glyphs, or handcrafted inline SVG; visual rendering is unverified.
-- Copy/content: passed — existing title, subtitle, and guidance are unchanged; no menu, HUD, or explanatory text was added.
-- Accessibility: contract passed, browser assistive-state verification pending.
-- Interactions: contract passed, real audio output and browser console verification pending.
+## 功能与状态验收
 
-## Comparison History
+- 入口：在首页进入 `closer` 状态后，指针在瞳孔停留完成吸入；触摸必须保持按下，键盘按一次 `Enter`／空格／↓ 后得到等价停留路径。
+- 第二幕：真实拖动朝光推进 `growth`；键盘／触摸操作条等价推进至 1.000 后进入第三幕。
+- 第三幕：继续拖动推进 `response`；第二幕的 `growth=1.000` 保留。
+- 第四幕：滚动、上划或键盘推进 `descent`，此前 `growth` 与 `response` 保留。
+- 第五幕：首次输入启动有持续时间的 `flow`，完成后才允许继续；没有分数、胜负或正确答案。
+- 第六幕：只包含候选灵感来源、再次体验、返回入口；不存在伪下一章入口。
+- 控制：菜单、暂停／恢复、声音、从本章开始、返回首页均使用真实按钮并完成状态清理。
 
-- V3.3 was visually passed against the supplied source at equal 1672 × 941 dimensions.
-- V3.4 intentionally adds one new top-right sound control while leaving every previously verified visual element unchanged.
-- No V3.4 visual iteration can be claimed until the current implementation is captured. No screenshot was fabricated from the old page or composited with the icon.
+## 响应式与无障碍
 
-## Implementation Checklist
+- [移动端首页](qa/world1/final-mobile-home.png) 与 [移动端第二幕](qa/world1/final-mobile-scene-02.png) 在 390 × 844 可操作，底部操作条没有溢出。
+- [移动端减少动态结尾](qa/world1/final-mobile-reduced-scene-06.png) 保留三项来源、再次体验和返回入口；全部触控目标至少 42–48px。
+- 原生按钮具有可读名称、可见焦点、`aria-expanded`／`aria-pressed` 状态与 polite live status。
+- `prefers-reduced-motion` 会缩短停留、场景桥接和资源流动，同时关闭不必要的 CSS 转场；`?motion=reduced` 仅用于浏览器验收同一路径。
+- 关闭声音时完整体验成立；声音开关的 off→on→off 回归通过，最终恢复关闭状态。
 
-- [x] Visible off icon with crossed speaker
-- [x] Visible on icon with sound waves
-- [x] Native accessible toggle and keyboard shortcut
-- [x] Browser-autoplay-safe activation and saved preference
-- [x] Independent existence, metabolism, contact, stillness, approach, and curiosity layers
-- [x] Growth, decay, and transfer tied to the corresponding visual event data
-- [x] Soft master fades on enable, disable, and hidden tab
-- [x] Local icon assets and third-party license notice
-- [x] Syntax, XML, HTTP, and audio-state contract checks
-- [ ] Fresh desktop and mobile browser screenshots
-- [ ] Browser console check
-- [ ] Real-device listening pass
-- [ ] Same-surface V3.4 source and implementation comparison
+## 已知但不阻断的问题
 
-final result: blocked
+- 桌面扁平母版在窄竖屏上必须裁切外围内容；移动版用可见操作条和来源按钮保证可完成，但第 6 幕烘焙的较长中央句子仍会在极窄屏边缘裁切。没有为此重排或重绘原画。
+- 三项灵感来源仍是候选信息，不提供未经核对的外链。
+- 程序化声音的开关与状态映射已验收；音量、低频和质感仍需用户用真实耳机／扬声器主观试听。
+
+## 证据索引
+
+- 桌面最终截图：`qa/world1/final-desktop-home.png`、`final-desktop-scene-01.png`–`06.png`、`final-desktop-scene-05-flow.png`。
+- 移动／减少动态截图：`qa/world1/final-mobile-*.png`。
+- 同屏设计对照：`qa/world1/compare-scene-01.png`–`06.png`，生成页为 `qa/world1/compare.html`。
+- 静态契约：`qa/world-one-contract-test.mjs` 与 `qa/soundscape-contract-test.mjs`。
+
+final result: passed
