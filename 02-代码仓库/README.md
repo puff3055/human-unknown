@@ -4,6 +4,8 @@
 
 开始代码任务前先阅读根目录 [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)。它记录当前分支、标签、已实现能力和验收缺口；不要仅凭文件更新时间判断版本。
 
+下面的“当前运行入口”描述 `feature/sonic-contact-v3.4`／`v3.4.0-rc.1`。如果当前检出分支里看不到 `living-nebula.js` 或 `living-soundscape.js`，说明你仍在较旧的页面实现上，应先按项目状态切换基线，而不是另写一套替代文件。
+
 ## 当前运行入口
 
 - `index.html`：首页入口。
