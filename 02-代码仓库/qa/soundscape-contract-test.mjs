@@ -246,7 +246,7 @@ assert.equal(storage.get('human-unknown:sound-enabled'), 'off');
 
 const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(html, /id="soundToggle"/);
-assert.match(html, /living-soundscape\.js\?v=world1-0\.1\.0-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=3\.4\.0-rc\.1/);
 assert.match(html, /assets\/tabler-volume-off\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');

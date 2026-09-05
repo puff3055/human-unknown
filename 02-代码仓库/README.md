@@ -1,29 +1,26 @@
 # HUMAN UNKNOWN｜代码入口
 
-> **当前范围：V3.4 首页／第一次接触 + 世界 1「群体生命」候选版。**
+> **当前范围：V3.4 首页／第一次接触。世界 1 六页实现已归档。**
 
 开始代码任务前先阅读根目录 [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)。它记录当前分支、标签、已实现能力和验收缺口；不要仅凭文件更新时间判断版本。
 
-下面的“当前运行入口”描述 `codex/world1-implementation`／`world1-v0.1.0-rc.1`。它保留 V3.4 首页，并在同一入口后接世界 1；不要把世界 1 逻辑继续堆进首页脚本。
+下面的“当前运行入口”描述归档提交后的 `codex/world1-implementation`：页面恢复为 V3.4 首页，不再加载或进入世界 1。
 
 ## 当前运行入口
 
-- `index.html`：首页与世界 1 的单页入口。
-- `app.js`：首页状态与交互编排，只向章节暴露暂停、恢复、引导和声音同步接口。
+- `index.html`：V3.4 首页入口。
+- `app.js`：V3.4 首页状态与交互编排。
 - `living-nebula.js`：活体星云／瞳孔渲染。
 - `living-soundscape.js`：V3.4 程序化声音与声音状态。
 - `style.css`：页面布局、标题、提示与声音开关样式。
-- `world-one.js`：中央停留／吸入、六幕状态机、光点连续状态和清理逻辑。
-- `world-one.css`：六幕母版、必要覆盖层、桌面与触摸布局、减少动态样式。
-- `world-one-soundscape.js`：独立的世界 1 程序化声场。
-- `assets/world1/`：按严格顺序复制的六张原始视觉母版。
-- `design-qa.md`：当前已完成和仍缺失的验证。
-- `qa/`：分版本 QA 证据与检查脚本；旧截图不代表当前页面。
+- `design-qa.md`：历史世界 1 设计 QA。
+- `qa/`：分版本 QA 证据与检查脚本；世界 1 截图不代表当前页面。
 
 在本目录运行 `python3 -m http.server 4174`，然后打开 `http://127.0.0.1:4174/`。直接打开文件无法稳定验证 WebGL、声音和资源加载。
 
 ## 非当前入口
 
+- `world-one.js`、`world-one.css`、`world-one-soundscape.js`、`assets/world1/`：世界 1 六页历史实现与视觉材料；当前入口不加载。
 - `archive/`：已退出当前产品路线的代码实验。
 - `sketch/`：草图或开发辅助内容，除非任务明确需要，否则不作为产品入口。
 

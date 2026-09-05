@@ -40,7 +40,6 @@
       this.status = document.getElementById('soundStatus');
       this.supported = Boolean(AudioContextClass && toggle);
       this.enabled = safeStoredPreference() === 'on';
-      this.sceneActive = true;
       this.activated = false;
       this.context = null;
       this.nodes = null;
@@ -387,7 +386,7 @@
         const now = this.context.currentTime;
         this.nodes.master.gain.cancelScheduledValues(now);
         this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, now);
-        this.nodes.master.gain.setTargetAtTime(this.sceneActive ? 0.72 : 0, now, 0.52);
+        this.nodes.master.gain.setTargetAtTime(0.72, now, 0.52);
         this.setUiState('on');
         return true;
       }
@@ -452,21 +451,10 @@
         this.ensureAudio().then((didStart) => {
           if (!didStart || !this.nodes || !this.enabled || document.hidden) return;
           const now = this.context.currentTime;
-          this.nodes.master.gain.setTargetAtTime(this.sceneActive ? 0.72 : 0, now, 0.42);
+          this.nodes.master.gain.setTargetAtTime(0.72, now, 0.42);
           this.setUiState('on');
         });
       }
-    }
-
-    setSceneActive(active) {
-      this.sceneActive = Boolean(active);
-      if (!this.context || !this.nodes) return;
-
-      const now = this.context.currentTime;
-      const target = this.enabled && this.sceneActive && !document.hidden ? 0.72 : 0;
-      this.nodes.master.gain.cancelScheduledValues(now);
-      this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, now);
-      this.nodes.master.gain.setTargetAtTime(target, now, target > 0 ? 0.42 : 0.16);
     }
 
     setUiState(state) {
@@ -762,7 +750,6 @@
       return {
         supported: this.supported,
         enabled: this.enabled,
-        sceneActive: this.sceneActive,
         activated: this.activated,
         contextState: this.context ? this.context.state : 'uninitialized',
         uiState: this.toggle ? this.toggle.dataset.soundState : 'missing',

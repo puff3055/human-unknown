@@ -1,4 +1,6 @@
-# HUMAN UNKNOWN｜世界 1 v0.2 桌面 Design QA
+# HUMAN UNKNOWN｜世界 1 v0.2 桌面 Design QA（历史归档）
+
+> **归档警示：本文件记录的候选版已被 PD-007 否定并撤下当前入口，仅供追溯，不是当前验收基线。**
 
 > 验收日期：2026-09-06
 > 分支：`codex/world1-implementation`

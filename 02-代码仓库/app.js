@@ -15,9 +15,7 @@
   const guideText = document.getElementById('guideText');
   const contactCursor = document.getElementById('contactCursor');
   const soundToggle = document.getElementById('soundToggle');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    || new URLSearchParams(window.location.search).get('motion') === 'reduced';
-  document.documentElement.dataset.motion = reduceMotion ? 'reduced' : 'full';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const soundscape = window.LivingSoundscape && soundToggle
     ? new window.LivingSoundscape(soundToggle)
     : null;
@@ -135,7 +133,6 @@
   let telemetryFrame = 0;
   let frameWindowStartedAt = lastFrame;
   let frameWindowCount = 0;
-  let suspended = false;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -662,12 +659,10 @@
   }
 
   window.addEventListener('pointermove', (event) => {
-    if (suspended) return;
     updatePointer(event.clientX, event.clientY, event.pointerType, performance.now());
   }, { passive: true });
 
   window.addEventListener('pointerdown', (event) => {
-    if (suspended) return;
     if (event.target.closest && event.target.closest('#soundToggle')) return;
     updatePointer(event.clientX, event.clientY, event.pointerType, performance.now());
   }, { passive: true });
@@ -1092,11 +1087,6 @@
     const deltaSeconds = Math.min(0.04, Math.max(0.001, (now - lastFrame) / 1000));
     lastFrame = now;
 
-    if (suspended) {
-      requestAnimationFrame(animate);
-      return;
-    }
-
     updatePointerDynamics(deltaSeconds, now);
     updatePresence(deltaSeconds);
     updateStudy(deltaSeconds, now);
@@ -1155,40 +1145,9 @@
   }
 
   window.__humanUnknown = {
-    suspend: () => {
-      if (suspended) return;
-      suspended = true;
-      contact.dataset.suspended = 'true';
-      if (soundscape) soundscape.setSceneActive(false);
-    },
-    resume: () => {
-      if (!suspended) return;
-      suspended = false;
-      lastFrame = performance.now();
-      contact.dataset.suspended = 'false';
-      if (soundscape) soundscape.setSceneActive(true);
-    },
-    prepareKeyboardEntry: () => {
-      if (suspended) return;
-      const now = performance.now();
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      pointer.previousX = centerX - 72;
-      pointer.previousY = centerY;
-      pointer.travel = Math.max(pointer.travel, 72);
-      updatePointer(centerX, centerY, 'keyboard', now);
-      contact.classList.add('has-pointer');
-      contactCursor.style.transform = `translate3d(${centerX}px, ${centerY}px, 0)`;
-      if (phase === 'waiting') becomeAware();
-    },
-    setGuide: (copy) => setGuide(copy),
-    setSoundEnabled: (enabled) => (
-      soundscape ? soundscape.setEnabled(Boolean(enabled)) : Promise.resolve(false)
-    ),
     getState: () => ({
       phase,
       lifeState,
-      suspended,
       renderer: nebula && nebula.ready ? 'living-nebula' : 'fallback',
       textureMode: 'continuous',
       rhythm: { stage: 'metabolic', progress: 0, breath: 0, duration: 0 },
@@ -1241,12 +1200,6 @@
       study: presence.study,
       approach: presence.approach,
       pointerTravel: pointer.travel,
-      pointer: {
-        x: pointer.x,
-        y: pointer.y,
-        inside: pointer.inside,
-        hasMoved: pointer.hasMoved,
-      },
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
     }),
