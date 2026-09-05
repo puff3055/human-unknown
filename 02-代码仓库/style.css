@@ -347,12 +347,13 @@ body {
   text-align: center;
   pointer-events: none;
   will-change: opacity, transform;
+  transition: top .8s cubic-bezier(.22, .61, .36, 1);
 }
 
 .guide p {
   min-height: 1.6em;
   margin: 0;
-  padding-left: .28em;
+  padding-left: 0;
   color: rgba(var(--paper) / .62);
   font-family: "PingFang SC", "Noto Sans CJK SC", sans-serif;
   font-size: clamp(10px, .78vw, 13px);
@@ -567,6 +568,37 @@ noscript {
 .contact[data-phase="handoff"] .guide {
   opacity: 0;
   pointer-events: none;
+}
+
+.return-control {
+  position: fixed;
+  z-index: 13;
+  left: 50%;
+  bottom: 8vh;
+  padding: 10px 22px;
+  border: 1px solid rgba(var(--paper) / .30);
+  border-radius: 2px;
+  background: rgba(0 0 0 / .16);
+  color: rgba(var(--paper) / .68);
+  font: 300 11px/1.4 "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  letter-spacing: .24em;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity .7s ease, transform .7s ease, border-color .3s ease;
+  pointer-events: none;
+  cursor: none;
+}
+
+.contact[data-phase="handoff"] .return-control {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.return-control:hover,
+.return-control:focus-visible {
+  border-color: rgba(var(--paper) / .62);
+  outline: none;
 }
 
 @media (max-width: 720px) {

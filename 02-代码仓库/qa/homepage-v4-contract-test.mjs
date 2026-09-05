@@ -24,8 +24,8 @@ const {
 
 assert.deepEqual(
   Array.from(COPY_SEQUENCE),
-  ['在这里', '它注意到你了', '放入你的眼睛'],
-  'the three approved lines and their order are exact'
+  ['它注意到你了', '在下方放入你的眼睛'],
+  'only the two approved lines remain'
 );
 assert.doesNotMatch(machineSource, /对，在这里/);
 assert.equal(STANDARD_TIMING.titleMinReadMs, 4000);
@@ -84,7 +84,7 @@ function reachNear(machine) {
   const nearAt = firstGuideReadableAt + STANDARD_TIMING.contactReadMs;
   state = machine.update(nearAt, OUTER_ACTIVE);
   assert.equal(state.phase, 'near');
-  assert.equal(state.guide, '在这里');
+  assert.equal(state.guide, '它注意到你了');
   assert.equal(
     state.guideReadableAt,
     firstGuideReadableAt,
@@ -109,7 +109,7 @@ function reachAligned(machine) {
     (state) => state.phase === 'aligned',
     CORE_ACTIVE
   );
-  assert.equal(aligned.state.guide, '放入你的眼睛');
+  assert.equal(aligned.state.guide, '在下方放入你的眼睛');
   return aligned;
 }
 
@@ -162,7 +162,7 @@ state = opening.update(contactAt - 1);
 assert.equal(state.phase, 'opening', 'intent cannot cut short the four-second title hold');
 state = opening.update(contactAt);
 assert.equal(state.phase, 'contact');
-assert.equal(state.guide, '在这里');
+assert.equal(state.guide, '它注意到你了');
 assert.ok(state.titleReadableFor >= 4000);
 
 const releasedNearTouch = new EncounterMachine();
@@ -309,14 +309,14 @@ assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
 assert.match(html, /data-countdown="waiting"/);
 assert.match(html, /id="gazeCountdown"/);
-assert.match(html, /encounter-machine\.js\?v=4\.3\.0-rc\.2/);
+assert.match(html, /encounter-machine\.js\?v=4\.5\.0-rc\.1/);
 assert.match(html, /在瞳孔内连续停留三秒/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);
 assert.match(appSource, /humanunknown:homepage-exit/);
 assert.match(appSource, /--contact-countdown/);
 assert.match(appSource, /countdownAttribute: 'data-countdown'/);
-assert.match(appSource, /version: '4\.3'/);
+assert.match(appSource, /version: '4\.5'/);
 assert.match(appSource, /1 \+ nextState\.hold \* 0\.05 \+ zoom \* 3\.55/);
 assert.doesNotMatch(appSource, /1 - collapse \* 0\.17 \+ fall/);
 assert.match(style, /@media \(prefers-reduced-motion: reduce\)/);
@@ -329,6 +329,9 @@ assert.match(style, /\.guide\s*\{[\s\S]*?top: 27\.5vh;/);
 assert.match(style, /--hotzone-y: -11vh;/);
 assert.match(style, /top: calc\(50% \+ var\(--pupil-y\) \+ var\(--hotzone-y\)\);/);
 assert.match(appSource, /const formatGuide = \(copy\) => `“\$\{copy\}”`;/);
+assert.match(html, /id="returnControl"/);
+assert.match(style, /data-phase="handoff"\] \.return-control/);
+assert.match(appSource, /window\.location\.reload\(\)/);
 assert.match(style, /\.guide p\s*\{[\s\S]*?font-size: clamp\(10px, \.78vw, 13px\);/);
 assert.match(style, /data-countdown="active"\] \.gaze-countdown/);
 assert.match(style, /data-countdown="active"\] \.cosmos::after/);
@@ -337,4 +340,4 @@ assert.doesNotMatch(nebulaSource, /narrativeScale|collapseFrame|narrativeMask/);
 assert.match(nebulaSource, /vec2 narrativeUv = vUv;/);
 assert.match(nebulaSource, /state\.zoom \|\| 0/);
 
-console.log('homepage v4.3 contract: passed');
+console.log('homepage v4.5 contract: passed');

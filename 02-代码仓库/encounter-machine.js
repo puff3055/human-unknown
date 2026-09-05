@@ -2,16 +2,15 @@
   'use strict';
 
   const COPY_SEQUENCE = Object.freeze([
-    '在这里',
     '它注意到你了',
-    '放入你的眼睛',
+    '在下方放入你的眼睛',
   ]);
 
   const PHASE_COPY = Object.freeze({
     contact: COPY_SEQUENCE[0],
     near: COPY_SEQUENCE[0],
-    noticed: COPY_SEQUENCE[1],
-    aligned: COPY_SEQUENCE[2],
+    noticed: COPY_SEQUENCE[0],
+    aligned: COPY_SEQUENCE[1],
   });
 
   const STANDARD_TIMING = Object.freeze({

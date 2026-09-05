@@ -17,6 +17,7 @@
   const gazeCountdown = document.getElementById('gazeCountdown');
   const countdownNumber = document.getElementById('countdownNumber');
   const contactCursor = document.getElementById('contactCursor');
+  const returnControl = document.getElementById('returnControl');
   const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const encounterApi = window.HumanUnknownEncounter;
@@ -323,6 +324,10 @@
       && target.closest('#soundToggle')
     );
   }
+
+  returnControl?.addEventListener('click', () => {
+    window.location.reload();
+  });
 
   function isPointerOverSoundControl() {
     if (
@@ -1616,7 +1621,7 @@
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
       contract: {
-        version: '4.3',
+        version: '4.5',
         phaseAttribute: 'data-phase',
         introAttribute: 'data-intro',
         countdownAttribute: 'data-countdown',
