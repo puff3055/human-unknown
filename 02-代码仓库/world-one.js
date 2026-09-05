@@ -4,27 +4,27 @@
   const SCENE_COUNT = 6;
   const SCENE_COPY = Object.freeze({
     1: {
-      instruction: '滚动、上划或按 ↓ 继续',
-      action: '继续',
+      instruction: '向下滚动进入这具身体',
+      action: '开始坠入',
       announcement: '第一幕。你正在坠入一具更大的身体。',
     },
     2: {
-      instruction: '按住并拖向光',
-      action: '朝光伸展',
+      instruction: '按住画面，沿亮线向右上拖动',
+      action: '观看伸展',
       announcement: '第二幕。按住叶面，朝光慢慢拖动。',
     },
     3: {
-      instruction: '继续向光的方向拖动',
-      action: '继续传递',
+      instruction: '继续向右上拖动，唤醒远处节点',
+      action: '观看回应',
       announcement: '第三幕。远处也在回应。',
     },
     4: {
-      instruction: '向下滚动，跟随脉络',
-      action: '沿脉络向下',
+      instruction: '向下滚动，光会沿同一脉络下潜',
+      action: '观看下潜',
       announcement: '第四幕。顺着脉络，向下。',
     },
     5: {
-      instruction: '让它流过去',
+      instruction: '点击中央光点，让资源开始流动',
       action: '让它流过去',
       announcement: '第五幕。丰沛区和需求区属于同一个生命。',
     },
@@ -47,6 +47,17 @@
 
   function lerp(from, to, amount) {
     return from + (to - from) * amount;
+  }
+
+  function easeOutQuart(value) {
+    return 1 - Math.pow(1 - clamp(value, 0, 1), 4);
+  }
+
+  function easeInOutCubic(value) {
+    const amount = clamp(value, 0, 1);
+    return amount < 0.5
+      ? 4 * amount * amount * amount
+      : 1 - Math.pow(-2 * amount + 2, 3) / 2;
   }
 
   function normalize(x, y) {
@@ -90,20 +101,42 @@
 
     drawGlow(x, y, intensity = 1, radius = 4) {
       const context = this.context;
-      const strength = clamp(intensity, 0, 1.4);
+      const strength = clamp(intensity, 0, 1.6);
+      const haloRadius = 34 + strength * 28;
       context.save();
       context.globalCompositeOperation = 'lighter';
-      context.shadowColor = `rgba(255, 238, 181, ${0.72 * strength})`;
-      context.shadowBlur = 17 + strength * 22;
-      context.fillStyle = `rgba(255, 246, 210, ${0.56 + strength * 0.27})`;
+      const halo = context.createRadialGradient(x, y, 0, x, y, haloRadius);
+      halo.addColorStop(0, `rgba(255, 248, 211, ${0.38 * strength})`);
+      halo.addColorStop(.2, `rgba(255, 226, 142, ${0.2 * strength})`);
+      halo.addColorStop(1, 'rgba(255, 214, 126, 0)');
+      context.fillStyle = halo;
       context.beginPath();
-      context.arc(x, y, radius + strength * 1.8, 0, Math.PI * 2);
+      context.arc(x, y, haloRadius, 0, Math.PI * 2);
       context.fill();
-      context.shadowBlur = 4;
-      context.strokeStyle = `rgba(255, 248, 220, ${0.38 + strength * 0.32})`;
-      context.lineWidth = 1;
+      context.shadowColor = `rgba(255, 238, 181, ${0.9 * strength})`;
+      context.shadowBlur = 20 + strength * 25;
+      context.fillStyle = `rgba(255, 249, 221, ${0.68 + strength * 0.2})`;
       context.beginPath();
-      context.arc(x, y, radius + 9 + strength * 4, 0, Math.PI * 2);
+      context.arc(x, y, radius + strength * 2.2, 0, Math.PI * 2);
+      context.fill();
+      context.shadowBlur = 6;
+      context.strokeStyle = `rgba(255, 250, 226, ${0.5 + strength * 0.28})`;
+      context.lineWidth = 1.4;
+      context.beginPath();
+      context.arc(x, y, radius + 13 + strength * 5, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+    }
+
+    drawRing(x, y, phase, intensity = 1) {
+      const amount = clamp(phase, 0, 1);
+      const context = this.context;
+      context.save();
+      context.globalCompositeOperation = 'lighter';
+      context.strokeStyle = `rgba(255, 235, 172, ${(1 - amount) * .42 * intensity})`;
+      context.lineWidth = 1.2;
+      context.beginPath();
+      context.arc(x, y, 18 + amount * 48, 0, Math.PI * 2);
       context.stroke();
       context.restore();
     }
@@ -121,10 +154,17 @@
       };
       context.save();
       context.globalCompositeOperation = 'lighter';
-      context.strokeStyle = `rgba(255, 229, 156, ${alpha})`;
-      context.lineWidth = 1.15;
-      context.shadowColor = 'rgba(244, 218, 145, .56)';
-      context.shadowBlur = 11;
+      context.strokeStyle = `rgba(239, 207, 117, ${alpha * .28})`;
+      context.lineWidth = 5.5;
+      context.shadowColor = 'rgba(244, 218, 145, .72)';
+      context.shadowBlur = 20;
+      context.beginPath();
+      context.moveTo(from.x, from.y);
+      context.quadraticCurveTo(control.x, control.y, end.x, end.y);
+      context.stroke();
+      context.shadowBlur = 8;
+      context.strokeStyle = `rgba(255, 241, 194, ${alpha})`;
+      context.lineWidth = 1.7;
       context.beginPath();
       context.moveTo(from.x, from.y);
       context.quadraticCurveTo(control.x, control.y, end.x, end.y);
@@ -162,84 +202,169 @@
       context.restore();
     }
 
+    sceneSignalPoint(scene, progress, time, sceneEnteredAt) {
+      const width = this.width;
+      const height = this.height;
+      if (scene === 1) {
+        const intro = this.reducedMotion ? 1 : easeOutQuart((time - sceneEnteredAt) / 1700);
+        return { x: width * .5, y: height * lerp(.18, .57, intro) };
+      }
+      if (scene === 2) {
+        return {
+          x: width * lerp(.29, .725, progress.growth),
+          y: height * lerp(.635, .16, progress.growth),
+        };
+      }
+      if (scene === 3) {
+        return {
+          x: width * lerp(.532, .635, progress.response),
+          y: height * lerp(.526, .348, progress.response),
+        };
+      }
+      if (scene === 4) {
+        return { x: width * .5, y: height * lerp(.6, .85, progress.descent) };
+      }
+      if (scene === 5) {
+        return this.quadraticPoint(
+          { x: width * .105, y: height * .37 },
+          { x: width * .51, y: height * .58 },
+          { x: width * .91, y: height * .41 },
+          progress.flow
+        );
+      }
+      return { x: width * .5, y: height * .49 };
+    }
+
     render(time, model) {
       this.clear();
       const width = this.width;
       const height = this.height;
       const scene = model.scene;
       const progress = model.progress;
-      const pulseTime = this.reducedMotion ? 0.45 : (time * 0.00016) % 1;
-      const accumulated = Math.max(
-        progress.growth,
-        progress.response,
-        progress.descent,
-        progress.flow
-      );
+      const sceneAge = Math.max(0, time - model.sceneEnteredAt);
+      const actionPhase = this.reducedMotion ? .4 : (time * .0011) % 1;
+      const accumulated = Math.max(progress.growth, progress.response, progress.descent, progress.flow);
+      const purposefulMotion = model.actionActive || model.transition || (scene === 1 && sceneAge < 1800);
+      const ambientEnergy = this.reducedMotion ? 0 : .16 + accumulated * .16;
 
-      this.drawMotes(time, 0.32 + accumulated * 0.62);
+      this.drawMotes(time, purposefulMotion ? .48 + accumulated * .52 : ambientEnergy);
 
-      if (scene === 2) {
-        const from = { x: width * 0.352, y: height * 0.638 };
-        const to = { x: width * 0.737, y: height * 0.155 };
-        this.drawLine(from, to, progress.growth, 0.34 + progress.growth * 0.42, -0.035);
-        const signal = {
-          x: lerp(from.x, to.x, progress.growth),
-          y: lerp(from.y, to.y, progress.growth),
-        };
-        this.drawGlow(signal.x, signal.y, 0.72 + progress.growth * 0.35, 4);
+      if (scene === 1) {
+        const signal = this.sceneSignalPoint(scene, progress, time, model.sceneEnteredAt);
+        const start = { x: width * .5, y: height * .12 };
+        const intro = this.reducedMotion ? 1 : easeOutQuart(sceneAge / 1700);
+        this.drawLine(start, signal, 1, .28 + intro * .42, 0);
+        this.drawGlow(signal.x, signal.y, .72 + intro * .34, 4.8);
+        if (intro < 1) this.drawRing(signal.x, signal.y, actionPhase, .9);
+      } else if (scene === 2) {
+        const from = { x: width * .29, y: height * .635 };
+        const to = { x: width * .725, y: height * .16 };
+        this.drawLine(from, to, 1, .13, -.035);
+        this.drawLine(from, to, Math.max(.015, progress.growth), .48 + progress.growth * .46, -.035);
+        const signal = this.sceneSignalPoint(scene, progress, time, model.sceneEnteredAt);
+        this.drawGlow(to.x, to.y, .28, 3.2);
+        this.drawGlow(signal.x, signal.y, .92 + progress.growth * .35, 5.2);
+        if (model.actionActive || progress.growth < .04) this.drawRing(signal.x, signal.y, actionPhase, 1);
       } else if (scene === 3) {
-        const origin = { x: width * 0.532, y: height * 0.526 };
-        const signal = { x: width * 0.635, y: height * 0.348 };
-        this.drawLine(origin, signal, Math.max(0.18, progress.response), 0.46, -0.05);
+        const origin = { x: width * .532, y: height * .526 };
+        const signal = this.sceneSignalPoint(scene, progress, time, model.sceneEnteredAt);
+        this.drawLine(origin, { x: width * .635, y: height * .348 }, Math.max(.05, progress.response), .58, -.05);
         const nodes = [
-          { x: width * 0.29, y: height * 0.25 },
-          { x: width * 0.43, y: height * 0.39 },
-          { x: width * 0.77, y: height * 0.25 },
-          { x: width * 0.83, y: height * 0.54 },
-          { x: width * 0.28, y: height * 0.62 },
+          { x: width * .29, y: height * .25 },
+          { x: width * .43, y: height * .39 },
+          { x: width * .77, y: height * .25 },
+          { x: width * .83, y: height * .54 },
+          { x: width * .28, y: height * .62 },
+          { x: width * .68, y: height * .68 },
         ];
         nodes.forEach((node, index) => {
-          const staggered = clamp(progress.response * 1.45 - index * 0.09, 0, 1);
-          this.drawLine(signal, node, staggered, 0.18 + staggered * 0.34, index % 2 ? 0.06 : -0.05);
-          if (staggered > 0.58) this.drawGlow(node.x, node.y, staggered * 0.55, 2.1);
+          const staggered = clamp(progress.response * 1.48 - index * .1, 0, 1);
+          this.drawLine(signal, node, staggered, .18 + staggered * .52, index % 2 ? .055 : -.05);
+          if (staggered > .46) {
+            this.drawGlow(node.x, node.y, .46 + staggered * .34, 2.7);
+            if (model.actionActive) this.drawRing(node.x, node.y, (actionPhase + index * .13) % 1, .44);
+          }
         });
-        this.drawGlow(signal.x, signal.y, 0.78 + progress.response * 0.32, 4.3);
+        this.drawGlow(signal.x, signal.y, .96 + progress.response * .34, 5.2);
+        if (progress.response < .04) this.drawRing(signal.x, signal.y, actionPhase, .72);
       } else if (scene === 4) {
-        const from = { x: width * 0.5, y: height * 0.65 };
-        const to = { x: width * 0.5, y: height * 0.865 };
-        this.drawLine(from, to, Math.max(0.08, progress.descent), 0.36 + progress.descent * 0.36, 0);
-        const y = lerp(from.y, to.y, progress.descent);
-        this.drawGlow(from.x, y, 0.68 + progress.descent * 0.3, 3.4);
-        if (progress.descent > 0.44) {
-          const branchAmount = clamp((progress.descent - 0.44) / 0.56, 0, 1);
-          this.drawLine({ x: from.x, y }, { x: width * 0.39, y: height * 0.91 }, branchAmount, 0.27, 0.08);
-          this.drawLine({ x: from.x, y }, { x: width * 0.63, y: height * 0.9 }, branchAmount, 0.25, -0.08);
+        const from = { x: width * .5, y: height * .6 };
+        const to = { x: width * .5, y: height * .85 };
+        this.drawLine(from, to, 1, .13, 0);
+        this.drawLine(from, to, Math.max(.02, progress.descent), .55 + progress.descent * .4, 0);
+        const signal = this.sceneSignalPoint(scene, progress, time, model.sceneEnteredAt);
+        this.drawGlow(signal.x, signal.y, .92 + progress.descent * .34, 4.8);
+        if (model.actionActive || progress.descent < .03) this.drawRing(signal.x, signal.y, actionPhase, .8);
+        if (progress.descent > .32) {
+          const branchAmount = clamp((progress.descent - .32) / .68, 0, 1);
+          this.drawLine(signal, { x: width * .37, y: height * .91 }, branchAmount, .42, .08);
+          this.drawLine(signal, { x: width * .64, y: height * .9 }, branchAmount, .4, -.08);
         }
       } else if (scene === 5) {
-        const from = { x: width * 0.105, y: height * 0.37 };
-        const control = { x: width * 0.51, y: height * 0.58 };
-        const to = { x: width * 0.91, y: height * 0.41 };
-        this.drawLine(from, to, Math.max(0.08, progress.flow), 0.25 + progress.flow * 0.38, -0.17);
-        if (progress.flow > 0) {
-          const pulseCount = this.reducedMotion ? 1 : 3;
+        const from = { x: width * .105, y: height * .37 };
+        const control = { x: width * .51, y: height * .58 };
+        const to = { x: width * .91, y: height * .41 };
+        this.drawLine(from, to, 1, .11, -.17);
+        this.drawLine(from, to, Math.max(.015, progress.flow), .54 + progress.flow * .45, -.17);
+        const signal = this.sceneSignalPoint(scene, progress, time, model.sceneEnteredAt);
+        this.drawGlow(from.x, from.y, .48 + (1 - progress.flow) * .46, 4.2);
+        this.drawGlow(signal.x, signal.y, .95 + progress.flow * .38, 5.1);
+        if (progress.flow < .02) this.drawRing(signal.x, signal.y, actionPhase, .88);
+        if (progress.flow > 0 && progress.flow < 1) {
+          const pulseCount = this.reducedMotion ? 1 : 7;
           for (let index = 0; index < pulseCount; index += 1) {
-            const pulse = clamp(progress.flow - index * 0.12, 0, 1);
-            const moving = this.reducedMotion
-              ? pulse
-              : clamp((pulseTime + index / pulseCount) * Math.min(1, progress.flow * 1.4), 0, 1);
-            const point = this.quadraticPoint(from, control, to, moving);
-            this.drawGlow(point.x, point.y, 0.42 + progress.flow * 0.45, 2.6);
+            const moving = clamp(progress.flow - index * .075, 0, 1);
+            if (moving <= 0) continue;
+            const pulse = this.quadraticPoint(from, control, to, moving);
+            this.drawGlow(pulse.x, pulse.y, .55 + progress.flow * .4, 2.4);
           }
-          this.drawGlow(to.x, to.y, progress.flow * 0.9, 3.6);
+        }
+        if (progress.flow > .44) {
+          const arrival = clamp((progress.flow - .44) / .56, 0, 1);
+          const receivingNodes = [
+            { x: width * .79, y: height * .28 },
+            { x: width * .86, y: height * .51 },
+            { x: width * .72, y: height * .61 },
+            { x: width * .92, y: height * .68 },
+          ];
+          receivingNodes.forEach((node, index) => {
+            const amount = clamp(arrival * 1.35 - index * .09, 0, 1);
+            this.drawLine(to, node, amount, .2 + amount * .46, index % 2 ? -.08 : .06);
+            if (amount > .45) this.drawGlow(node.x, node.y, amount * .72, 2.4);
+          });
         }
       } else if (scene === 6) {
-        const x = width * 0.5;
-        const y = height * 0.49;
-        this.drawGlow(x, y, 0.3 + accumulated * 0.28, 2.6);
+        const center = { x: width * .5, y: height * .49 };
+        const nodes = [
+          { x: width * .23, y: height * .3 },
+          { x: width * .36, y: height * .2 },
+          { x: width * .64, y: height * .18 },
+          { x: width * .78, y: height * .34 },
+          { x: width * .3, y: height * .62 },
+          { x: width * .72, y: height * .63 },
+        ];
+        nodes.forEach((node, index) => {
+          this.drawLine(center, node, accumulated, .18 + accumulated * .28, index % 2 ? .05 : -.05);
+          if (accumulated > .65) this.drawGlow(node.x, node.y, .32, 2.1);
+        });
+        this.drawGlow(center.x, center.y, .46 + accumulated * .45, 4);
       }
 
-      if (model.pointer.visible && model.input !== 'touch') {
-        this.drawGlow(model.pointer.x, model.pointer.y, model.pointer.down ? 0.84 : 0.42, 1.9);
+      if (model.transition) {
+        const transitionAmount = easeInOutCubic((time - model.transition.start) / model.transition.duration);
+        const from = this.sceneSignalPoint(model.transition.from, progress, time, model.sceneEnteredAt);
+        const to = this.sceneSignalPoint(model.transition.to, progress, time, model.sceneEnteredAt);
+        const carrier = {
+          x: lerp(from.x, to.x, transitionAmount),
+          y: lerp(from.y, to.y, transitionAmount),
+        };
+        this.drawLine(from, to, transitionAmount, .7, 0);
+        this.drawGlow(carrier.x, carrier.y, 1.34, 6);
+        if (!this.reducedMotion) this.drawRing(carrier.x, carrier.y, actionPhase, 1.1);
+      }
+
+      if (model.pointer.visible) {
+        this.drawGlow(model.pointer.x, model.pointer.y, model.pointer.down ? .96 : .5, 2.1);
       }
     }
   }
@@ -250,9 +375,11 @@
       this.contact = document.getElementById('contact');
       this.guideText = document.getElementById('guideText');
       this.canvas = document.getElementById('worldSignalCanvas');
+      this.visual = document.getElementById('worldVisual');
       this.progressCurrent = document.getElementById('worldProgressCurrent');
       this.assistCopy = document.getElementById('worldAssistCopy');
       this.assistAction = document.getElementById('worldAssistAction');
+      this.interactionMeter = document.getElementById('worldInteractionMeter');
       this.sceneAction = document.getElementById('worldSceneAction');
       this.menuToggle = document.getElementById('worldMenuToggle');
       this.controls = document.getElementById('worldControls');
@@ -274,6 +401,9 @@
       this.sceneEnteredAt = 0;
       this.inputLockedUntil = 0;
       this.pendingAdvance = null;
+      this.transition = null;
+      this.transitionTimers = [];
+      this.guidedAction = null;
       this.flowStartedAt = 0;
       this.flowCompletedAnnounced = false;
       this.entranceProgress = 0;
@@ -361,6 +491,25 @@
       this.renderer.resize();
     }
 
+    pointerInStage() {
+      const bounds = this.visual.getBoundingClientRect();
+      const inside = this.pointer.x >= bounds.left
+        && this.pointer.x <= bounds.right
+        && this.pointer.y >= bounds.top
+        && this.pointer.y <= bounds.bottom;
+      return {
+        x: clamp(this.pointer.x - bounds.left, 0, bounds.width),
+        y: clamp(this.pointer.y - bounds.top, 0, bounds.height),
+        down: this.pointer.down,
+        visible: this.pointer.visible && inside,
+      };
+    }
+
+    setActionActive(active) {
+      if (active) this.root.dataset.action = 'active';
+      else if (!this.guidedAction && this.root.dataset.flow !== 'running') delete this.root.dataset.action;
+    }
+
     handleVisibility() {
       if (this.soundscape) this.soundscape.setPaused(this.paused || document.hidden);
     }
@@ -417,6 +566,7 @@
       if (this.scene === 2 || this.scene === 3 || this.scene === 4) {
         this.dragging = true;
         this.dragScene = this.scene;
+        this.setActionActive(true);
         if (this.root.setPointerCapture) {
           try {
             this.root.setPointerCapture(event.pointerId);
@@ -432,6 +582,7 @@
       this.pointer.down = false;
       this.dragging = false;
       this.dragScene = 0;
+      this.setActionActive(false);
     }
 
     handleWheel(event) {
@@ -442,7 +593,9 @@
       if (this.scene === 1 && event.deltaY > 0) {
         this.setScene(2);
       } else if (this.scene === 4 && event.deltaY > 0) {
+        this.setActionActive(true);
         this.addDescent(event.deltaY / Math.max(520, window.innerHeight * 1.25));
+        window.setTimeout(() => this.setActionActive(false), 180);
       }
     }
 
@@ -549,32 +702,55 @@
 
       if (this.scene === 1) {
         this.setScene(2);
-      } else if (this.scene === 2) {
-        const previous = this.progress.growth;
-        this.progress.growth = clamp(previous + 0.23, 0, 1);
-        this.pulseAtThreshold(previous, this.progress.growth, 'signal');
-        if (this.progress.growth >= 1 && previous < 1) {
-          this.queueScene(3, this.reduceMotion ? 80 : 560);
-        }
-      } else if (this.scene === 3) {
-        const previous = this.progress.response;
-        this.progress.response = clamp(previous + 0.23, 0, 1);
-        this.pulseAtThreshold(previous, this.progress.response, 'signal');
-        if (this.progress.response >= 1 && previous < 1) {
-          this.queueScene(4, this.reduceMotion ? 100 : 880);
-        }
-      } else if (this.scene === 4) {
-        this.addDescent(0.24);
+      } else if (this.scene >= 2 && this.scene <= 4) {
+        this.startGuidedAction();
       } else if (this.scene === 5) {
         if (this.progress.flow >= 1) this.setScene(6);
         else this.startFlow();
       }
     }
 
+    startGuidedAction() {
+      if (this.guidedAction || this.transition) return;
+      const config = {
+        2: { key: 'growth', sound: 'signal', next: 3, duration: 1450, pause: 520 },
+        3: { key: 'response', sound: 'signal', next: 4, duration: 1650, pause: 620 },
+        4: { key: 'descent', sound: 'root', next: 5, duration: 1750, pause: 460 },
+      }[this.scene];
+      if (!config) return;
+      this.guidedAction = {
+        ...config,
+        scene: this.scene,
+        from: this.progress[config.key],
+        start: performance.now(),
+        duration: this.reduceMotion ? 90 : config.duration,
+      };
+      this.assistAction.disabled = true;
+      this.setActionActive(true);
+      this.announce('同一束光开始沿你的方向移动。');
+    }
+
+    updateGuidedAction(now) {
+      const action = this.guidedAction;
+      if (!action || this.paused || this.scene !== action.scene) return;
+      const amount = easeInOutCubic((now - action.start) / action.duration);
+      const previous = this.progress[action.key];
+      this.progress[action.key] = lerp(action.from, 1, amount);
+      this.pulseAtThreshold(previous, this.progress[action.key], action.sound);
+      if (amount < 1) return;
+
+      this.progress[action.key] = 1;
+      this.guidedAction = null;
+      this.assistAction.disabled = false;
+      this.setActionActive(false);
+      this.queueScene(action.next, this.reduceMotion ? 80 : action.pause);
+    }
+
     startFlow() {
       if (this.flowStartedAt || this.progress.flow >= 1) return;
-      this.flowStartedAt = performance.now();
+      this.flowStartedAt = performance.now() + (this.reduceMotion ? 0 : 420);
       this.root.dataset.flow = 'running';
+      this.setActionActive(true);
       this.sceneAction.setAttribute('aria-label', '资源正在同一生命中流动');
       this.assistAction.disabled = true;
       if (this.soundscape) this.soundscape.pulse('flow', 0.82, -0.38);
@@ -583,13 +759,15 @@
 
     updateFlow(now) {
       if (!this.flowStartedAt || this.progress.flow >= 1 || this.paused) return;
-      const duration = this.reduceMotion ? 180 : 2750;
+      if (now < this.flowStartedAt) return;
+      const duration = this.reduceMotion ? 180 : 3400;
       const previous = this.progress.flow;
       this.progress.flow = clamp((now - this.flowStartedAt) / duration, 0, 1);
       this.pulseAtThreshold(previous, this.progress.flow, 'flow');
 
       if (this.progress.flow >= 1) {
         this.root.dataset.flow = 'complete';
+        this.setActionActive(false);
         this.sceneAction.setAttribute('aria-label', '继续到本章余韵');
         this.assistCopy.textContent = '在这里，没有谁单独活着。';
         this.assistAction.textContent = '继续';
@@ -689,12 +867,64 @@
       if (announce) this.announce(copy.announcement);
     }
 
+    sceneProgress() {
+      if (this.scene === 1) return 0;
+      if (this.scene === 2) return this.progress.growth;
+      if (this.scene === 3) return this.progress.response;
+      if (this.scene === 4) return this.progress.descent;
+      if (this.scene === 5) return this.progress.flow;
+      return 1;
+    }
+
+    updateInteractionUi() {
+      const value = clamp(this.sceneProgress(), 0, 1);
+      const percent = Math.round(value * 100);
+      this.root.style.setProperty('--interaction-progress', `${percent}%`);
+
+      if (this.scene === 2 && value > .01) {
+        this.assistCopy.textContent = `伸展 ${percent}% · 保持向右上拖动`;
+      } else if (this.scene === 3 && value > .01) {
+        this.assistCopy.textContent = `回应 ${percent}% · 远处正在依次亮起`;
+      } else if (this.scene === 4 && value > .01) {
+        this.assistCopy.textContent = `下潜 ${percent}% · 继续向下滚动`;
+      } else if (this.scene === 5 && this.root.dataset.flow === 'running') {
+        this.assistCopy.textContent = value > 0
+          ? `资源正在同一生命中流动 ${percent}%`
+          : '停一下——让流动真正发生';
+      } else if (this.scene === 5 && this.root.dataset.flow === 'complete') {
+        this.assistCopy.textContent = '丰沛与需求，从来不是两个生命';
+      }
+
+      const point = {
+        2: { x: lerp(29, 72.5, this.progress.growth), y: lerp(63.5, 16, this.progress.growth) },
+        3: { x: lerp(53.2, 63.5, this.progress.response), y: lerp(52.6, 34.8, this.progress.response) },
+        4: { x: 50, y: lerp(60, 85, this.progress.descent) },
+        5: { x: lerp(10.5, 76, this.progress.flow), y: lerp(37, 47, this.progress.flow) },
+      }[this.scene];
+      if (point) {
+        this.root.style.setProperty('--signal-label-x', `${point.x}%`);
+        this.root.style.setProperty('--signal-label-y', `${point.y}%`);
+      }
+    }
+
     updateTelemetry() {
       this.root.dataset.growth = this.progress.growth.toFixed(3);
       this.root.dataset.response = this.progress.response.toFixed(3);
       this.root.dataset.descent = this.progress.descent.toFixed(3);
       this.root.dataset.flowProgress = this.progress.flow.toFixed(3);
       this.root.dataset.signalId = this.continuitySignalId;
+    }
+
+    clearTransitionTimers() {
+      this.transitionTimers.forEach((timer) => window.clearTimeout(timer));
+      this.transitionTimers = [];
+      this.sceneImages.forEach((image) => image.classList.remove('is-incoming', 'is-exiting', 'is-entering'));
+    }
+
+    transitionMode(from, to) {
+      if (to === 6) return 'arrival';
+      if (from === 4) return 'down';
+      return 'push';
     }
 
     setScene(nextScene, options = {}) {
@@ -706,30 +936,56 @@
       if (!nextImage) return;
 
       this.pendingAdvance = null;
+      this.guidedAction = null;
       this.dragging = false;
       this.dragScene = 0;
-      this.inputLockedUntil = now + (this.reduceMotion || options.immediate ? 80 : 880);
-      this.scene = next;
-      this.sceneEnteredAt = now;
+      this.setActionActive(false);
+      this.clearTransitionTimers();
 
-      this.sceneImages.forEach((image) => image.classList.remove('is-leaving'));
-      if (currentImage && currentImage !== nextImage) {
-        if (this.reduceMotion || options.immediate) {
-          currentImage.classList.remove('is-current');
-        } else {
-          this.root.classList.add('is-bridging');
-          currentImage.classList.add('is-leaving');
-          window.setTimeout(() => {
-            currentImage.classList.remove('is-current', 'is-leaving');
-            this.root.classList.remove('is-bridging');
-          }, 1120);
-        }
-      }
-      nextImage.loading = 'eager';
-      nextImage.classList.add('is-current');
+      const nextAsset = nextImage.querySelector('img');
+      if (nextAsset) nextAsset.loading = 'eager';
       const followingImage = this.sceneImages.find((image) => Number(image.dataset.sceneArt) === next + 1);
-      if (followingImage) followingImage.loading = 'eager';
-      this.updateSceneUi({ announce: options.announce !== false });
+      const followingAsset = followingImage && followingImage.querySelector('img');
+      if (followingAsset) followingAsset.loading = 'eager';
+
+      if (this.reduceMotion || options.immediate || !currentImage || currentImage === nextImage) {
+        this.transition = null;
+        delete this.root.dataset.transition;
+        this.sceneImages.forEach((image) => image.classList.toggle('is-current', image === nextImage));
+        this.scene = next;
+        this.sceneEnteredAt = now;
+        this.inputLockedUntil = now + 80;
+        this.updateSceneUi({ announce: options.announce !== false });
+        return;
+      }
+
+      const from = this.scene;
+      const mode = this.transitionMode(from, next);
+      const cutDelay = mode === 'arrival' ? 300 : 270;
+      const duration = mode === 'arrival' ? 920 : 790;
+      this.inputLockedUntil = now + duration;
+      this.transition = { from, to: next, start: now, duration };
+      this.root.dataset.transition = mode;
+      currentImage.classList.add('is-exiting');
+      nextImage.classList.add('is-incoming');
+
+      const cutTimer = window.setTimeout(() => {
+        if (!this.transition || this.transition.to !== next) return;
+        currentImage.classList.remove('is-current', 'is-exiting');
+        nextImage.classList.remove('is-incoming');
+        nextImage.classList.add('is-current', 'is-entering');
+        this.scene = next;
+        this.sceneEnteredAt = performance.now();
+        this.updateSceneUi({ announce: options.announce !== false });
+      }, cutDelay);
+
+      const finishTimer = window.setTimeout(() => {
+        nextImage.classList.remove('is-entering');
+        delete this.root.dataset.transition;
+        this.transition = null;
+        this.transitionTimers = [];
+      }, duration);
+      this.transitionTimers = [cutTimer, finishTimer];
     }
 
     updateEntrance(now, deltaSeconds) {
@@ -782,7 +1038,10 @@
         this.root.setAttribute('aria-hidden', 'false');
         this.root.dataset.active = 'true';
         document.body.classList.add('world-one-active');
-        requestAnimationFrame(() => this.root.classList.add('is-visible'));
+        requestAnimationFrame(() => {
+          this.root.classList.add('is-visible');
+          this.renderer.resize();
+        });
 
         this.contact.classList.add('is-world-hidden');
         this.contact.inert = true;
@@ -801,6 +1060,9 @@
     }
 
     clearProgress() {
+      this.clearTransitionTimers();
+      this.transition = null;
+      this.guidedAction = null;
       this.progress.growth = 0;
       this.progress.response = 0;
       this.progress.descent = 0;
@@ -808,6 +1070,10 @@
       this.flowStartedAt = 0;
       this.flowCompletedAnnounced = false;
       this.pendingAdvance = null;
+      delete this.root.dataset.transition;
+      delete this.root.dataset.action;
+      delete this.root.dataset.flow;
+      this.root.style.setProperty('--interaction-progress', '0%');
       this.continuitySignalId = this.createSignalId();
       this.sourceButtons.forEach((button) => button.classList.remove('is-selected'));
     }
@@ -823,12 +1089,17 @@
     exit(options = {}) {
       if (!this.active && !this.entering) return;
       this.pendingAdvance = null;
+      this.guidedAction = null;
+      this.transition = null;
+      this.clearTransitionTimers();
       this.dragging = false;
       this.pointer.down = false;
       this.active = false;
       this.entering = false;
       this.root.dataset.active = 'false';
-      this.root.classList.remove('is-visible', 'is-bridging', 'show-assist');
+      this.root.classList.remove('is-visible', 'show-assist');
+      delete this.root.dataset.transition;
+      delete this.root.dataset.action;
       this.root.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('world-one-active');
       this.controls.hidden = true;
@@ -871,12 +1142,14 @@
 
       this.syncSoundPreference();
       if (!this.paused) {
+        this.updateGuidedAction(now);
         if (this.pendingAdvance && now >= this.pendingAdvance.at) {
           const next = this.pendingAdvance.scene;
           this.pendingAdvance = null;
           this.setScene(next);
         }
         this.updateFlow(now);
+        this.updateInteractionUi();
         this.updateTelemetry();
         if (this.soundscape) {
           this.soundscape.update({
@@ -884,12 +1157,16 @@
             progress: this.progress,
           });
         }
+        const stagePointer = this.pointerInStage();
         this.renderer.render(now, {
           scene: this.scene,
+          sceneEnteredAt: this.sceneEnteredAt,
           progress: this.progress,
+          transition: this.transition,
+          actionActive: Boolean(this.dragging || this.guidedAction || this.root.dataset.flow === 'running'),
           pointer: {
-            ...this.pointer,
-            visible: this.pointer.visible && now - this.pointer.lastMovedAt < 1500,
+            ...stagePointer,
+            visible: stagePointer.visible && now - this.pointer.lastMovedAt < 1500,
           },
           input: this.root.dataset.input,
         });

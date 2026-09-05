@@ -8,7 +8,7 @@
   <title>HUMAN UNKNOWN</title>
   <link rel="preload" as="image" href="assets/home-contact-background.png">
   <link rel="stylesheet" href="style.css?v=3.4.0-rc.1">
-  <link rel="stylesheet" href="world-one.css?v=world1-0.1.0-rc.1">
+  <link rel="stylesheet" href="world-one.css?v=world1-0.2.0-rc.1">
 </head>
 <body>
   <main class="contact" id="contact" data-phase="waiting" data-life="resting">
@@ -69,69 +69,32 @@
     tabindex="-1"
     hidden
   >
-    <div class="world-one__visual" id="worldVisual" aria-hidden="true">
-      <img
-        class="world-one__scene is-current"
-        data-scene-art="1"
-        src="assets/world1/scene-01.png"
-        alt=""
-        width="1672"
-        height="941"
-        draggable="false"
-      >
-      <img
-        class="world-one__scene"
-        data-scene-art="2"
-        src="assets/world1/scene-02.png"
-        alt=""
-        width="1672"
-        height="941"
-        loading="lazy"
-        draggable="false"
-      >
-      <img
-        class="world-one__scene"
-        data-scene-art="3"
-        src="assets/world1/scene-03.png"
-        alt=""
-        width="1672"
-        height="941"
-        loading="lazy"
-        draggable="false"
-      >
-      <img
-        class="world-one__scene"
-        data-scene-art="4"
-        src="assets/world1/scene-04.png"
-        alt=""
-        width="1672"
-        height="941"
-        loading="lazy"
-        draggable="false"
-      >
-      <img
-        class="world-one__scene"
-        data-scene-art="5"
-        src="assets/world1/scene-05.png"
-        alt=""
-        width="1672"
-        height="941"
-        loading="lazy"
-        draggable="false"
-      >
-      <img
-        class="world-one__scene"
-        data-scene-art="6"
-        src="assets/world1/scene-06.png"
-        alt=""
-        width="1672"
-        height="941"
-        loading="lazy"
-        draggable="false"
-      >
+    <div class="world-one__visual" id="worldVisual">
+      <div class="world-one__scene is-current" data-scene-art="1">
+        <img class="world-one__scene-image" src="assets/world1/scene-01.png" alt="" width="1672" height="941" draggable="false">
+      </div>
+      <div class="world-one__scene" data-scene-art="2">
+        <img class="world-one__scene-image" src="assets/world1/scene-02.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      </div>
+      <div class="world-one__scene" data-scene-art="3">
+        <img class="world-one__scene-image" src="assets/world1/scene-03.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      </div>
+      <div class="world-one__scene" data-scene-art="4">
+        <img class="world-one__scene-image" src="assets/world1/scene-04.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      </div>
+      <div class="world-one__scene" data-scene-art="5">
+        <img class="world-one__scene-image" src="assets/world1/scene-05.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      </div>
+      <div class="world-one__scene" data-scene-art="6">
+        <img class="world-one__scene-image" src="assets/world1/scene-06.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      </div>
       <canvas class="world-one__signal" id="worldSignalCanvas"></canvas>
       <div class="world-one__transition" id="worldTransition"></div>
-    </div>
+
+      <div class="world-one__signal-label" id="worldSignalLabel" aria-hidden="true">
+        <span></span>
+        <p>同一束光</p>
+      </div>
 
     <button
       class="world-one__brand-action"
@@ -165,6 +128,7 @@
     <div class="world-one__assist" id="worldAssist">
       <p class="world-one__assist-kicker" id="worldAssistKicker">CHAPTER 01 / THE COLLECTIVE</p>
       <p class="world-one__assist-copy" id="worldAssistCopy">滚动、上划或按 ↓ 继续</p>
+      <div class="world-one__interaction-meter" aria-hidden="true"><i id="worldInteractionMeter"></i></div>
       <button class="world-one__assist-action" id="worldAssistAction" type="button">继续</button>
     </div>
 
@@ -177,6 +141,7 @@
       <button type="button" data-source="green-planet" aria-label="候选灵感：绿色星球，纪录片"><span>绿色星球</span></button>
       <button type="button" data-source="semiosis" aria-label="候选灵感：共生 Semiosis，小说"><span>共生 Semiosis</span></button>
       <button type="button" data-source="vaster-than-empires" aria-label="候选灵感：比帝国辽阔，比帝国缓慢，短篇小说"><span>比帝国辽阔…</span></button>
+    </div>
     </div>
 
     <aside class="world-one__controls" id="worldControls" aria-label="体验控制" hidden>
@@ -198,8 +163,8 @@
   <noscript>请启用 JavaScript，完成这次接触。</noscript>
   <script src="living-nebula.js?v=3.4.0-rc.1"></script>
   <script src="living-soundscape.js?v=world1-0.1.0-rc.1"></script>
-  <script src="world-one-soundscape.js?v=world1-0.1.0-rc.1"></script>
-  <script src="app.js?v=world1-0.1.0-rc.1"></script>
-  <script src="world-one.js?v=world1-0.1.0-rc.1"></script>
+  <script src="world-one-soundscape.js?v=world1-0.2.0-rc.1"></script>
+  <script src="app.js?v=world1-0.2.0-rc.1"></script>
+  <script src="world-one.js?v=world1-0.2.0-rc.1"></script>
 </body>
 </html>
