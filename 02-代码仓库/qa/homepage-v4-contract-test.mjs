@@ -32,7 +32,10 @@ assert.equal(STANDARD_TIMING.titleMinReadMs, 4000);
 assert.equal(STANDARD_TIMING.holdMs, 3000, 'the gaze countdown lasts three seconds');
 assert.equal(STANDARD_TIMING.contactReadMs, 1600);
 assert.equal(STANDARD_TIMING.nearReadMs, 1600);
-assert.equal(STANDARD_TIMING.noticedReadMs, 2000);
+assert.equal(STANDARD_TIMING.readyPauseMs, 3000);
+assert.equal(STANDARD_TIMING.guideEnterMs, 1200);
+assert.equal(STANDARD_TIMING.guideSwapMs, 1200);
+assert.equal(STANDARD_TIMING.noticedReadMs, 5000);
 assert.equal(STANDARD_TIMING.alignedReadMs, 1800);
 assert.equal(STANDARD_TIMING.alignedExitMs, 550);
 assert.ok(STANDARD_TIMING.revealMs >= 3000 && STANDARD_TIMING.revealMs <= 4000);
@@ -73,41 +76,29 @@ function advanceUntil(machine, from, predicate, input, maxDuration = 12000, step
 const titleFullyVisibleAt = STANDARD_TIMING.blackoutMs
   + STANDARD_TIMING.revealMs
   + STANDARD_TIMING.titleInMs;
-const contactAt = titleFullyVisibleAt + STANDARD_TIMING.titleMinReadMs;
-
-function reachNear(machine) {
-  machine.start(0);
-  machine.markIntent(900);
-  let state = machine.update(contactAt);
-  assert.equal(state.phase, 'contact');
-  const firstGuideReadableAt = state.guideReadableAt;
-  const nearAt = firstGuideReadableAt + STANDARD_TIMING.contactReadMs;
-  state = machine.update(nearAt, OUTER_ACTIVE);
-  assert.equal(state.phase, 'near');
-  assert.equal(state.guide, '它注意到你了');
-  assert.equal(
-    state.guideReadableAt,
-    firstGuideReadableAt,
-    'the internal near phase cannot restart or replace the first narration line'
-  );
-  return { state, now: nearAt };
-}
+const narrationStartsAt = titleFullyVisibleAt + STANDARD_TIMING.readyPauseMs;
 
 function reachAligned(machine) {
-  const near = reachNear(machine);
-  const noticed = advanceUntil(
+  machine.start(0);
+  let state = machine.update(narrationStartsAt - 1, AWAY);
+  assert.equal(state.phase, 'opening');
+  assert.equal(state.guide, '');
+  state = machine.update(narrationStartsAt, AWAY);
+  assert.equal(state.phase, 'noticed');
+  assert.equal(state.guide, '它注意到你了');
+  assert.equal(state.guideReadableAt, narrationStartsAt + STANDARD_TIMING.guideEnterMs);
+  state = advance(
     machine,
-    near.now,
-    (state) => state.phase === 'noticed',
-    OUTER_ACTIVE
+    narrationStartsAt,
+    state.guideReadableAt + STANDARD_TIMING.noticedReadMs - 1,
+    AWAY
   );
-  assert.equal(noticed.state.guide, '它注意到你了');
-  assert.equal(noticed.state.noticeSerial, 1);
+  assert.equal(state.phase, 'noticed', 'the first line stays fully readable for five seconds');
   const aligned = advanceUntil(
     machine,
-    noticed.now,
+    state.guideReadableAt + STANDARD_TIMING.noticedReadMs - 1,
     (state) => state.phase === 'aligned',
-    CORE_ACTIVE
+    AWAY
   );
   assert.equal(aligned.state.guide, '在下方放入你的眼睛');
   return aligned;
@@ -115,37 +106,25 @@ function reachAligned(machine) {
 
 function reachCountdownReady(machine) {
   const aligned = reachAligned(machine);
-  const readEndsAt = aligned.state.guideReadableAt + STANDARD_TIMING.alignedReadMs;
-  let state = advance(machine, aligned.now, readEndsAt - 1, CORE_ACTIVE);
-  assert.equal(state.hold, 0, 'core dwell before the final line ends counts for nothing');
+  let state = advance(machine, aligned.now, aligned.state.guideReadableAt - 1, CORE_ACTIVE);
+  assert.equal(state.hold, 0, 'the countdown cannot start during the final line fade-in');
   assert.equal(state.countdownState, 'waiting');
   assert.equal(state.finalGuideReadComplete, false);
 
-  state = machine.update(readEndsAt, CORE_ACTIVE);
+  state = machine.update(aligned.state.guideReadableAt, CORE_INACTIVE);
   assert.equal(state.finalGuideReadComplete, true);
-  assert.equal(state.finalGuideComplete, false);
-  assert.equal(state.guideExit, 0, 'the final line starts fading only after its read time');
-  assert.equal(state.hold, 0);
-
-  const fadeMidpoint = readEndsAt + STANDARD_TIMING.alignedExitMs / 2;
-  state = advance(machine, readEndsAt, fadeMidpoint, CORE_ACTIVE);
-  assert.ok(state.guideExit > 0.45 && state.guideExit < 0.55);
-  assert.equal(state.countdownState, 'waiting');
-  assert.equal(state.hold, 0, 'the guide fade cannot leak time into the countdown');
-
-  const countdownReadyAt = readEndsAt + STANDARD_TIMING.alignedExitMs;
-  state = advance(machine, fadeMidpoint, countdownReadyAt, CORE_INACTIVE);
   assert.equal(state.finalGuideComplete, true);
+  assert.equal(state.guideExit, 0, 'the final line remains visible');
+  assert.equal(state.hold, 0);
   assert.equal(state.countdownReady, true);
   assert.equal(state.countdownState, 'ready');
-  assert.equal(state.hold, 0);
-  return { state, now: countdownReadyAt };
+  return { state, now: aligned.state.guideReadableAt };
 }
 
 const still = new EncounterMachine();
 still.start(0);
-let state = still.update(60000, AWAY);
-assert.equal(state.phase, 'opening', 'no input cannot finish the title or story');
+let state = still.update(narrationStartsAt - 1, AWAY);
+assert.equal(state.phase, 'opening', 'the first line waits for three seconds after ready');
 assert.equal(state.intro, 'title-hold');
 assert.equal(state.guide, '');
 
@@ -157,58 +136,10 @@ assert.equal(state.reveal, 0);
 state = opening.update(STANDARD_TIMING.blackoutMs + 200);
 assert.equal(state.intro, 'revealing');
 assert.ok(state.reveal > 0 && state.reveal < 1);
-opening.markIntent(900);
-state = opening.update(contactAt - 1);
-assert.equal(state.phase, 'opening', 'intent cannot cut short the four-second title hold');
-state = opening.update(contactAt);
-assert.equal(state.phase, 'contact');
+state = opening.update(narrationStartsAt);
+assert.equal(state.phase, 'noticed');
 assert.equal(state.guide, '它注意到你了');
-assert.ok(state.titleReadableFor >= 4000);
-
-const releasedNearTouch = new EncounterMachine();
-const nearTouch = reachNear(releasedNearTouch);
-state = advance(releasedNearTouch, nearTouch.now, nearTouch.now + 220, OUTER_ACTIVE);
-const outerDwellBeforeRelease = state.outerDwell;
-state = advance(
-  releasedNearTouch,
-  nearTouch.now + 220,
-  nearTouch.now + 1600,
-  CORE_INACTIVE
-);
-assert.equal(
-  state.phase,
-  'near',
-  'released touch cannot advance from near while its last coordinate stays in the hotzone'
-);
-assert.ok(state.outerDwell < outerDwellBeforeRelease);
-
-const releasedNoticedTouch = new EncounterMachine();
-const noticedTouchNear = reachNear(releasedNoticedTouch);
-const noticedTouch = advanceUntil(
-  releasedNoticedTouch,
-  noticedTouchNear.now,
-  (next) => next.phase === 'noticed',
-  OUTER_ACTIVE
-);
-state = advance(
-  releasedNoticedTouch,
-  noticedTouch.now,
-  noticedTouch.now + 220,
-  CORE_ACTIVE
-);
-const coreDwellBeforeRelease = state.coreDwell;
-state = advance(
-  releasedNoticedTouch,
-  noticedTouch.now + 220,
-  noticedTouch.state.guideReadableAt + STANDARD_TIMING.noticedReadMs + 1200,
-  CORE_INACTIVE
-);
-assert.equal(
-  state.phase,
-  'noticed',
-  'released touch cannot advance from noticed while its last coordinate stays in the core'
-);
-assert.ok(state.coreDwell < coreDwellBeforeRelease);
+assert.ok(state.titleReadableFor >= 3000);
 
 const preGateTouch = new EncounterMachine();
 const touchReady = reachCountdownReady(preGateTouch);
@@ -292,9 +223,11 @@ const reducedTitleAt = REDUCED_TIMING.blackoutMs
   + REDUCED_TIMING.revealMs
   + REDUCED_TIMING.titleInMs;
 const reducedState = reduced.update(reducedTitleAt + REDUCED_TIMING.titleMinReadMs);
-assert.equal(reducedState.phase, 'contact');
+assert.equal(reducedState.phase, 'noticed');
 assert.equal(reducedState.reducedMotion, true);
 assert.equal(REDUCED_TIMING.titleMinReadMs, 4000, 'reduced motion preserves reading time');
+assert.equal(REDUCED_TIMING.readyPauseMs, 3000, 'reduced motion preserves the ready pause');
+assert.equal(REDUCED_TIMING.noticedReadMs, 5000, 'reduced motion preserves the first line hold');
 assert.equal(REDUCED_TIMING.alignedReadMs, 1800, 'reduced motion preserves narration time');
 assert.equal(REDUCED_TIMING.holdMs, 3000, 'reduced motion preserves the deliberate countdown');
 assert.ok(REDUCED_TIMING.entryMs < STANDARD_TIMING.entryMs);
@@ -309,7 +242,7 @@ assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
 assert.match(html, /data-countdown="waiting"/);
 assert.match(html, /id="gazeCountdown"/);
-assert.match(html, /encounter-machine\.js\?v=4\.5\.0-rc\.1/);
+assert.match(html, /encounter-machine\.js\?v=4\.5\.1-rc\.1/);
 assert.match(html, /在瞳孔内连续停留三秒/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);
@@ -333,6 +266,7 @@ assert.match(html, /id="returnControl"/);
 assert.match(style, /data-phase="handoff"\] \.return-control/);
 assert.match(appSource, /window\.location\.reload\(\)/);
 assert.match(style, /\.guide p\s*\{[\s\S]*?font-size: clamp\(10px, \.78vw, 13px\);/);
+assert.match(style, /opacity 1\.2s ease/);
 assert.match(style, /data-countdown="active"\] \.gaze-countdown/);
 assert.match(style, /data-countdown="active"\] \.cosmos::after/);
 assert.match(style, /scaleX\(\.72\)/);
