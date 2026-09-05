@@ -93,6 +93,89 @@ body {
   opacity: 1;
 }
 
+.sound-toggle {
+  --sound-glow: 8px;
+  --sound-glow-alpha: .015;
+  position: fixed;
+  z-index: 12;
+  top: clamp(20px, 2.4vw, 38px);
+  right: clamp(20px, 2.4vw, 38px);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(var(--paper) / .20);
+  border-radius: 50%;
+  background: rgba(0 0 0 / .18);
+  box-shadow: 0 0 var(--sound-glow) rgba(var(--paper) / var(--sound-glow-alpha));
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 1.4s cubic-bezier(.22, .61, .36, 1),
+    transform 1.4s cubic-bezier(.22, .61, .36, 1),
+    border-color .45s ease,
+    background-color .45s ease,
+    box-shadow .35s ease;
+  cursor: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.contact.is-ready .sound-toggle {
+  opacity: .84;
+  transform: translateY(0);
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible,
+.sound-toggle.is-on {
+  border-color: rgba(var(--paper) / .40);
+  background: rgba(0 0 0 / .28);
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible {
+  opacity: 1;
+}
+
+.sound-toggle:focus-visible {
+  outline: 1px solid rgba(var(--paper) / .72);
+  outline-offset: 4px;
+}
+
+.contact.is-ready .sound-toggle:disabled {
+  opacity: .28;
+}
+
+.sound-toggle img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  opacity: .78;
+  transition: opacity .45s ease, transform .45s cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.sound-toggle.is-on img {
+  opacity: .94;
+  transform: scale(1.03);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 .identity h1 {
   margin: 0;
   padding-left: 1.09em;
@@ -233,6 +316,18 @@ noscript {
     bottom: 9vh;
     width: 88vw;
   }
+
+  .sound-toggle {
+    top: 18px;
+    right: 18px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .sound-toggle img {
+    width: 19px;
+    height: 19px;
+  }
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -249,6 +344,8 @@ noscript {
   .cosmos,
   .identity,
   .guide p,
+  .sound-toggle,
+  .sound-toggle img,
   .contact-cursor,
   .contact-cursor span {
     transition-duration: .01ms !important;

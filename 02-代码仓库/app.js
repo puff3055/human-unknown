@@ -14,7 +14,11 @@
   const nebulaFallback = document.getElementById('nebulaFallback');
   const guideText = document.getElementById('guideText');
   const contactCursor = document.getElementById('contactCursor');
+  const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const soundscape = window.LivingSoundscape && soundToggle
+    ? new window.LivingSoundscape(soundToggle)
+    : null;
 
   const pointer = {
     x: window.innerWidth / 2,
@@ -659,6 +663,7 @@
   }, { passive: true });
 
   window.addEventListener('pointerdown', (event) => {
+    if (event.target.closest && event.target.closest('#soundToggle')) return;
     updatePointer(event.clientX, event.clientY, event.pointerType, performance.now());
   }, { passive: true });
 
@@ -1092,6 +1097,19 @@
     updateWaves(now);
     const signalProgress = getSignalProgress(now);
 
+    if (soundscape) {
+      soundscape.update({
+        phase,
+        lifeState,
+        pointer,
+        presence,
+        pupil,
+        curiosity,
+        metabolism,
+        waves: waves.items,
+      }, deltaSeconds);
+    }
+
     if (nebula) {
       nebula.render(now / 1000, {
         gazeX: gaze.x,
@@ -1183,6 +1201,7 @@
       approach: presence.approach,
       pointerTravel: pointer.travel,
       firstContactAt,
+      sound: soundscape ? soundscape.getState() : null,
     }),
   };
 
@@ -1195,6 +1214,7 @@
     window.clearTimeout(holdTimer);
     window.clearTimeout(observeTimer);
     window.clearTimeout(guideSwapTimer);
+    if (soundscape) soundscape.destroy();
     if (nebula) nebula.destroy();
   });
 })();

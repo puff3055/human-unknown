@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HUMAN UNKNOWN — reduced motion QA</title>
   <base href="../">
-  <link rel="stylesheet" href="style.css?v=3.3.0-rc.1">
+  <link rel="stylesheet" href="style.css?v=3.4.0-rc.1">
   <script>
     const nativeMatchMedia = window.matchMedia.bind(window);
     window.matchMedia = (query) => {
@@ -31,6 +31,10 @@
       <canvas id="nebulaCanvas"></canvas>
       <img class="nebula-fallback" id="nebulaFallback" src="assets/home-contact-background.png" alt="" width="1672" height="941" draggable="false">
     </div>
+    <button class="sound-toggle" id="soundToggle" type="button" aria-label="开启声音" aria-pressed="false" data-sound-state="off">
+      <img id="soundIcon" src="assets/tabler-volume-off.svg" alt="" width="24" height="24" draggable="false">
+    </button>
+    <span class="visually-hidden" id="soundStatus" aria-live="polite">声音已关闭</span>
     <header class="identity" aria-label="HUMAN UNKNOWN">
       <h1>HUMAN UNKNOWN</h1>
       <p>人类的世界，只是世界的一种解释。</p>
@@ -38,7 +42,8 @@
     <div class="guide" aria-live="polite" aria-atomic="true"><p id="guideText"></p></div>
     <div class="contact-cursor" id="contactCursor" aria-hidden="true"><span></span></div>
   </main>
-  <script src="living-nebula.js?v=3.3.0-rc.1"></script>
-  <script src="app.js?v=3.3.0-rc.1"></script>
+  <script src="living-nebula.js?v=3.4.0-rc.1"></script>
+  <script src="living-soundscape.js?v=3.4.0-rc.1"></script>
+  <script src="app.js?v=3.4.0-rc.1"></script>
 </body>
 </html>
