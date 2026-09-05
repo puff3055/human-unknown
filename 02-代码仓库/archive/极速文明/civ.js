@@ -1,3 +1,5 @@
+// ARCHIVED: 早期“极速文明”原型。它不属于当前产品路线，也没有被当前首页加载。
+// 仅供追溯；除非用户明确重启这一方向，否则不要从本文件开始实现新章节。
 // civ.js — 一个时间流速极快的文明。抽象点阵，不是城市。
 // 用法：const civ = new Civ({cols, rows, seed, kind:'alien'|'human'});
 //       civ.advance(years); civ.draw(ctx, cx, cy, cell, alpha)
