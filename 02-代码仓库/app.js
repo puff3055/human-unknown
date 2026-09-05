@@ -42,11 +42,17 @@
   };
 
   const rhythm = {
-    duration: 15.8,
-    offset: Math.random() * 15.8,
+    duration: 10.4,
+    offset: Math.random() * 10.4,
     stage: 'gathering',
     value: 0,
     progress: 0,
+  };
+
+  const awakening = {
+    startedAt: 0,
+    stage: 'waiting',
+    value: 0,
   };
 
   let nebula = null;
@@ -109,6 +115,8 @@
       contact.classList.remove('no-webgl');
       nebulaCanvas.dataset.renderer = 'living-nebula';
       nebulaCanvas.dataset.texture = 'continuous';
+      awakening.startedAt = performance.now();
+      awakening.stage = 'emerging';
       nebula.render(0, {
         pointerX: 0,
         pointerY: 0,
@@ -171,11 +179,11 @@
 
     holdTimer = window.setTimeout(() => {
       presence.targetHold = 0;
-    }, reduceMotion ? 40 : 590);
+    }, reduceMotion ? 40 : 280);
 
     awarenessTimer = window.setTimeout(
       becomeAware,
-      reduceMotion ? 80 : 510
+      reduceMotion ? 80 : 310
     );
   }
 
@@ -271,45 +279,75 @@
       / rhythm.duration;
     rhythm.progress = cyclePosition;
 
-    if (cyclePosition < 0.34) {
-      const progress = easeInOut(cyclePosition / 0.34);
+    let baseValue = 0;
+
+    if (cyclePosition < 0.32) {
+      const progress = easeInOut(cyclePosition / 0.32);
       rhythm.stage = 'gathering';
-      rhythm.value = -0.20 + progress * 0.72;
-      return;
-    }
-
-    if (cyclePosition < 0.46) {
-      const progress = (cyclePosition - 0.34) / 0.12;
+      baseValue = -0.35 + progress * 1.10;
+    } else if (cyclePosition < 0.45) {
+      const progress = (cyclePosition - 0.32) / 0.13;
       rhythm.stage = 'suspending';
-      rhythm.value = 0.52 - Math.sin(progress * Math.PI) * 0.025;
-      return;
-    }
-
-    if (cyclePosition < 0.82) {
-      const progress = easeInOut((cyclePosition - 0.46) / 0.36);
+      baseValue = 0.75 - Math.sin(progress * Math.PI) * 0.04;
+    } else if (cyclePosition < 0.80) {
+      const progress = easeInOut((cyclePosition - 0.45) / 0.35);
       rhythm.stage = 'releasing';
-      rhythm.value = 0.52 - progress * 0.84;
+      baseValue = 0.75 - progress * 1.30;
+    } else {
+      const progress = (cyclePosition - 0.80) / 0.20;
+      rhythm.stage = 'afterwave';
+      baseValue = -0.55 * (1 - easeInOut(progress))
+        + Math.sin(progress * Math.PI * 2) * 0.10 * (1 - progress);
+    }
+
+    const microRhythm = Math.sin(
+      (timeSeconds + rhythm.offset * 0.31) * Math.PI * 2 / 3.7
+    ) * 0.11 + Math.sin(
+      (timeSeconds - rhythm.offset * 0.17) * Math.PI * 2 / 5.9
+    ) * 0.055;
+    rhythm.value = clamp(baseValue + microRhythm, -0.68, 0.88);
+  }
+
+  function computeAwakening(now) {
+    if (reduceMotion || !awakening.startedAt) {
+      awakening.stage = 'resting';
+      awakening.value = 0;
       return;
     }
 
-    const progress = (cyclePosition - 0.82) / 0.18;
-    rhythm.stage = 'afterwave';
-    rhythm.value = -0.32 * (1 - easeInOut(progress))
-      + Math.sin(progress * Math.PI * 2) * 0.055 * (1 - progress);
+    const elapsed = (now - awakening.startedAt) / 1000;
+
+    if (elapsed < 0.55) {
+      awakening.stage = 'emerging';
+      awakening.value = 0;
+    } else if (elapsed < 1.62) {
+      awakening.stage = 'gathering';
+      awakening.value = easeInOut((elapsed - 0.55) / 1.07);
+    } else if (elapsed < 1.92) {
+      awakening.stage = 'holding';
+      awakening.value = 1;
+    } else if (elapsed < 2.82) {
+      const release = easeInOut((elapsed - 1.92) / 0.90);
+      awakening.stage = 'releasing';
+      awakening.value = 1 - release;
+    } else {
+      awakening.stage = 'resting';
+      awakening.value = 0;
+    }
   }
 
   function updateCuriosity(deltaSeconds, now) {
     const canStudy = pointer.hasMoved
       && pointer.inside
       && phase !== 'waiting'
-      && now - pointer.lastMovedAt > 980
+      && now - pointer.lastMovedAt > 800
       && pointer.speed < 80;
 
     presence.targetStudy = canStudy && !reduceMotion ? 1 : 0;
     presence.study = damp(
       presence.study,
       presence.targetStudy,
-      presence.targetStudy ? 1.7 : 3.8,
+      presence.targetStudy ? 3.8 : 4.6,
       deltaSeconds
     );
 
@@ -336,16 +374,16 @@
       ? clamp((pointer.y - viewportCenterY) / Math.max(1, viewportCenterY), -1, 1)
       : 0;
     const directionLength = Math.hypot(directionX, directionY) || 1;
-    const studyReach = presence.study * 5;
-    const rawTargetX = directionX * 24 + directionX / directionLength * studyReach;
-    const rawTargetY = directionY * 17 + directionY / directionLength * studyReach * 0.7;
-    const perceptionRate = canTrack ? 2.55 : 1.35;
+    const studyReach = presence.study * 8;
+    const rawTargetX = directionX * 48 + directionX / directionLength * studyReach;
+    const rawTargetY = directionY * 31 + directionY / directionLength * studyReach * 0.68;
+    const perceptionRate = canTrack ? 3.05 : 1.35;
 
     gaze.perceivedX = damp(gaze.perceivedX, rawTargetX, perceptionRate, deltaSeconds);
     gaze.perceivedY = damp(gaze.perceivedY, rawTargetY, perceptionRate, deltaSeconds);
 
-    const stiffness = 19.5;
-    const damping = 8.8;
+    const stiffness = 18.5;
+    const damping = 8.1;
     gaze.velocityX += (
       (gaze.perceivedX - gaze.x) * stiffness - gaze.velocityX * damping
     ) * deltaSeconds;
@@ -399,7 +437,7 @@
 
   function getSignalProgress(now) {
     if (!presence.studyStartedAt || presence.study < 0.05) return 0;
-    return ((now - presence.studyStartedAt) % 3900) / 3900;
+    return ((now - presence.studyStartedAt) % 3200) / 3200;
   }
 
   function updateTelemetry(now, signalProgress) {
@@ -418,6 +456,8 @@
     nebulaCanvas.dataset.study = presence.study.toFixed(3);
     nebulaCanvas.dataset.signal = signalProgress.toFixed(3);
     nebulaCanvas.dataset.approach = presence.approach.toFixed(3);
+    nebulaCanvas.dataset.awakening = awakening.stage;
+    nebulaCanvas.dataset.awaken = awakening.value.toFixed(3);
     nebulaCanvas.dataset.uptime = (now / 1000).toFixed(2);
   }
 
@@ -426,6 +466,7 @@
     lastFrame = now;
 
     pointer.speed = damp(pointer.speed, 0, 5.5, deltaSeconds);
+    computeAwakening(now);
     computeRhythm(now / 1000);
     updatePresence(deltaSeconds);
     updateCuriosity(deltaSeconds, now);
@@ -445,6 +486,7 @@
         study: presence.study,
         signalProgress,
         approach: presence.approach,
+        awaken: awakening.value,
       });
       updateTelemetry(now, signalProgress);
     }
@@ -472,6 +514,10 @@
         progress: rhythm.progress,
         breath: rhythm.value,
         duration: rhythm.duration,
+      },
+      awakening: {
+        stage: awakening.stage,
+        value: awakening.value,
       },
       gaze: {
         x: gaze.x,

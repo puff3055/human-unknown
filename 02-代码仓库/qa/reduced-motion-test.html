@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN — reduced motion QA</title>
+  <base href="../">
+  <link rel="stylesheet" href="style.css?v=3.1.0-rc.1">
+  <script>
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = (query) => {
+      if (query === '(prefers-reduced-motion: reduce)') {
+        return {
+          matches: true,
+          media: query,
+          onchange: null,
+          addListener() {},
+          removeListener() {},
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() { return true; },
+        };
+      }
+      return nativeMatchMedia(query);
+    };
+  </script>
+</head>
+<body>
+  <main class="contact" id="contact" data-phase="waiting" data-life="resting">
+    <div class="cosmos" id="cosmos" aria-hidden="true">
+      <canvas id="nebulaCanvas"></canvas>
+      <img class="nebula-fallback" id="nebulaFallback" src="assets/home-contact-background.png" alt="" width="1672" height="941" draggable="false">
+    </div>
+    <header class="identity" aria-label="HUMAN UNKNOWN">
+      <h1>HUMAN UNKNOWN</h1>
+      <p>人类的世界，只是世界的一种解释。</p>
+    </header>
+    <div class="guide" aria-live="polite" aria-atomic="true"><p id="guideText"></p></div>
+    <div class="contact-cursor" id="contactCursor" aria-hidden="true"><span></span></div>
+  </main>
+  <script src="living-nebula.js?v=3.1.0-rc.1"></script>
+  <script src="app.js?v=3.1.0-rc.1"></script>
+</body>
+</html>

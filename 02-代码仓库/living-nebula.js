@@ -33,6 +33,7 @@
     uniform float uStudy;
     uniform float uSignalProgress;
     uniform float uApproach;
+    uniform float uAwaken;
     uniform float uMotion;
 
     float luminance(vec3 color) {
@@ -73,11 +74,11 @@
       vec2 tangent = vec2(-radial.y, radial.x);
 
       vec2 baseSourceUv = coverUv(vUv);
-      float planets = max(
-        sphereMask(baseSourceUv, vec2(0.5927, 0.8278), 0.0215),
+      float planetNeighborhood = max(
+        sphereMask(baseSourceUv, vec2(0.5927, 0.8278), 0.0510),
         max(
-          sphereMask(baseSourceUv, vec2(0.7081, 0.7056), 0.0335),
-          sphereMask(baseSourceUv, vec2(0.3206, 0.3592), 0.0240)
+          sphereMask(baseSourceUv, vec2(0.7081, 0.7056), 0.0790),
+          sphereMask(baseSourceUv, vec2(0.3206, 0.3592), 0.0570)
         )
       );
 
@@ -92,34 +93,52 @@
       float tissueResponse = smoothstep(0.34, 0.58, radius)
         * (1.0 - smoothstep(1.43, 1.92, radius));
       float outerAnchor = 1.0 - smoothstep(1.54, 1.98, radius);
+      float pupilEdge = smoothstep(0.32, 0.44, radius)
+        * (1.0 - smoothstep(0.69, 0.87, radius));
 
       vec2 deformation = gazeMetric
-        * (pupilResponse * 0.98 + middleResponse * 0.27)
+        * (pupilResponse * 0.98 + middleResponse * 0.36)
         * uAwareness;
 
       float facing = dot(radial, gazeDirection);
       deformation += radial
-        * (-facing * gazeLength * 0.15)
-        * middleResponse
+        * (-facing * gazeLength)
+        * (pupilEdge * 0.42 + middleResponse * 0.20)
         * uAwareness;
 
       float gazeBend = radial.x * gazeDirection.y - radial.y * gazeDirection.x;
       deformation += tangent
         * gazeBend
         * gazeLength
-        * 0.058
+        * 0.105
         * middleResponse
         * uAwareness;
 
       float breathStrength = uBreath * (1.0 - uHold * 0.72);
       float spatialBreath = breathStrength
         * (0.78 + 0.22 * sin(atan(metric.y, metric.x) * 3.0 + radius * 2.4));
-      deformation += radial * spatialBreath * 0.0125 * tissueResponse;
+      float microRhythm = (
+        sin(uTime * 1.71 + radius * 5.1 + atan(metric.y, metric.x) * 2.0) * 0.12
+        + sin(uTime * 0.93 - radius * 3.7) * 0.055
+      ) * uMotion;
+      deformation += radial
+        * (spatialBreath + microRhythm)
+        * (pupilEdge * 0.024 + tissueResponse * 0.014);
+
+      float awakeningField = pupilEdge + middleResponse * 0.52;
+      deformation += radial
+        * uAwaken
+        * (pupilEdge * 0.025 + tissueResponse * 0.008);
+      deformation += tangent
+        * sin(atan(metric.y, metric.x) * 4.0 - radius * 5.8)
+        * uAwaken
+        * middleResponse
+        * 0.0045;
 
       float innerAfterwave = sin(uTime * 0.23 - radius * 7.5 + atan(metric.y, metric.x) * 1.7);
       deformation += radial
         * innerAfterwave
-        * 0.0016
+        * 0.0032
         * tissueResponse
         * uMotion
         * (1.0 - uHold * 0.6);
@@ -131,35 +150,50 @@
       );
       deformation += tangent
         * membraneShear
-        * 0.00145
+        * 0.0042
         * middleResponse
         * uMotion;
 
-      float pupilEdge = smoothstep(0.34, 0.48, radius)
-        * (1.0 - smoothstep(0.67, 0.83, radius));
       float gatheringField = smoothstep(0.66, 0.84, radius)
         * (1.0 - smoothstep(1.48, 1.83, radius));
       deformation += radial
-        * (pupilEdge * 0.023 - gatheringField * 0.008)
+        * (pupilEdge * 0.040 - gatheringField * 0.026)
         * uApproach;
 
       vec2 pointerMetric = vec2(uPointerPx.x, -uPointerPx.y)
         * 2.0 / max(1.0, uResolution.y);
       vec2 towardPointer = pointerMetric - metric;
       float pointerDistance = length(towardPointer);
-      float localInterest = 1.0 - smoothstep(0.07, 0.54, pointerDistance);
+      float localInterest = 1.0 - smoothstep(0.07, 0.72, pointerDistance);
       float curiosityField = localInterest * tissueResponse * uStudy;
       deformation += towardPointer / max(pointerDistance, 0.0001)
         * curiosityField
-        * 0.0072;
+        * 0.040;
+
+      float signalRadius = mix(0.035, 0.82, uSignalProgress);
+      float signalWidth = mix(0.045, 0.105, uSignalProgress);
+      float signalAngle = atan(towardPointer.y, towardPointer.x);
+      float signalBranchField = 0.50
+        + sin(signalAngle * 4.5 + pointerDistance * 10.0 + radius * 4.0) * 0.30
+        + sin(signalAngle * -7.0 + pointerDistance * 17.0) * 0.20;
+      float signalBranchGate = smoothstep(0.24, 0.78, signalBranchField);
+      float signalFront = (1.0 - smoothstep(
+        signalWidth * 0.32,
+        signalWidth,
+        abs(pointerDistance - signalRadius)
+      )) * (0.28 + signalBranchGate * 0.72);
+      deformation -= towardPointer / max(pointerDistance, 0.0001)
+        * signalFront
+        * tissueResponse
+        * uStudy
+        * 0.024;
 
       vec2 planetDrift = vec2(
         sin(uTime * 0.031 + baseSourceUv.y * 13.0),
         cos(uTime * 0.024 + baseSourceUv.x * 11.0)
-      ) * 0.0018 * planets * uMotion;
+      ) * 0.0028 * planetNeighborhood * uMotion;
 
       deformation *= outerAnchor;
-      deformation *= mix(1.0, 0.055, planets);
       deformation += planetDrift;
       deformation *= uMotion;
 
@@ -187,26 +221,55 @@
       color = mix(color, soft, veil * 0.07);
 
       float lifeGain = 1.0
-        + breathStrength * tissueResponse * 0.030
-        + uStudy * localInterest * filamentRidge * 0.28
-        + uApproach * pupilEdge * 0.045;
+        + breathStrength * tissueResponse * 0.075
+        + uAwaken * awakeningField * 0.052
+        + uStudy * localInterest * filamentRidge * 0.38
+        + uStudy * localInterest * smoothstep(0.020, 0.27, sourceLight) * 0.110
+        + uApproach * pupilEdge * 0.065;
       color *= lifeGain;
       color += vec3(0.58, 0.63, 0.70)
         * filamentRidge
-        * (0.11 + abs(breathStrength) * 0.055 + uStudy * 0.08);
+        * (
+          0.11
+          + abs(breathStrength) * 0.10
+          + uAwaken * 0.075
+          + uStudy * localInterest * 0.16
+        );
 
-      float signalRadius = mix(0.025, 0.54, uSignalProgress);
-      float signalRing = 1.0 - smoothstep(
-        0.018,
-        0.062,
-        abs(pointerDistance - signalRadius)
-      );
       float signalTexture = smoothstep(0.035, 0.36, softLight + filamentRidge * 2.1);
-      color += vec3(0.56, 0.63, 0.71)
-        * signalRing
+      float branchPattern = 0.5 + 0.5 * sin(
+        signalAngle * 4.5
+        + radius * 6.0
+        + sourceLight * 14.0
+      );
+      float branchGate = smoothstep(0.18, 0.86, branchPattern);
+      float diffusionGlow = signalFront
         * signalTexture
-        * uStudy
-        * 0.075;
+        * (0.32 + branchGate * 0.68)
+        * uStudy;
+      float signalShadowFront = 1.0 - smoothstep(
+        signalWidth * 0.45,
+        signalWidth * 1.35,
+        abs(pointerDistance - max(0.0, signalRadius - signalWidth * 1.15))
+      );
+      float diffusionShadow = signalShadowFront
+        * signalTexture
+        * (0.22 + signalBranchGate * 0.78)
+        * uStudy;
+      float localRecognition = localInterest
+        * signalTexture
+        * (0.55 + signalBranchGate * 0.45)
+        * uStudy;
+      color *= 1.0 - diffusionShadow * 0.072;
+      color += vec3(0.56, 0.63, 0.71)
+        * diffusionGlow
+        * 0.35;
+      color += vec3(0.49, 0.55, 0.63)
+        * localRecognition
+        * 0.072;
+
+      float outerFocus = smoothstep(0.92, 1.72, radius);
+      color *= 1.0 - outerFocus * uApproach * 0.038;
 
       vec2 moteGrid = vec2(214.0, 121.0);
       vec2 moteUv = sourceUv
@@ -220,10 +283,11 @@
       );
       float moteGate = step(0.9915, hash21(moteCell + 91.73));
       float moteBody = 1.0 - smoothstep(0.018, 0.105, length(moteLocal - moteCenter));
-      float moteTwinkle = 0.58 + 0.42 * sin(
+      float moteTwinkleLive = 0.58 + 0.42 * sin(
         uTime * (0.27 + hash21(moteCell + 51.9) * 0.36)
         + hash21(moteCell) * 6.28318
       );
+      float moteTwinkle = mix(0.72, moteTwinkleLive, uMotion);
       float inhabited = smoothstep(0.028, 0.24, softLight + filamentRidge * 1.7);
       color += vec3(0.72, 0.76, 0.79)
         * moteBody
@@ -232,7 +296,10 @@
         * inhabited
         * 0.34;
 
-      float heldStill = uHold * tissueResponse * smoothstep(0.02, 0.32, sourceLight);
+      float heldStill = uHold
+        * tissueResponse
+        * smoothstep(0.02, 0.32, sourceLight)
+        * uMotion;
       color *= 1.0 - heldStill * 0.045;
 
       gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
@@ -398,6 +465,7 @@
         study: gl.getUniformLocation(program, 'uStudy'),
         signalProgress: gl.getUniformLocation(program, 'uSignalProgress'),
         approach: gl.getUniformLocation(program, 'uApproach'),
+        awaken: gl.getUniformLocation(program, 'uAwaken'),
         motion: gl.getUniformLocation(program, 'uMotion'),
       };
     }
@@ -450,6 +518,7 @@
       gl.uniform1f(locations.study, state.study || 0);
       gl.uniform1f(locations.signalProgress, state.signalProgress || 0);
       gl.uniform1f(locations.approach, state.approach || 0);
+      gl.uniform1f(locations.awaken, state.awaken || 0);
       gl.uniform1f(locations.motion, this.reducedMotion ? 0 : 1);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
