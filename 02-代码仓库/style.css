@@ -42,6 +42,16 @@ body {
   text-rendering: geometricPrecision;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body,
+  body *,
+  body *::before,
+  body *::after {
+    cursor: none !important;
+  }
+}
+
 .contact {
   position: relative;
   width: 100%;
@@ -611,8 +621,12 @@ noscript {
 }
 
 @media (hover: none), (pointer: coarse) {
-  body {
-    cursor: auto;
+  html,
+  body,
+  body *,
+  body *::before,
+  body *::after {
+    cursor: auto !important;
   }
 
   .contact-cursor {

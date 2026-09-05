@@ -27,6 +27,7 @@
 - `prefers-reduced-motion`：光团旋转值在 600ms 前后均为 `-8deg`，速度拖曳均为 `0px`，交互时直接切换为静态光点。
 - 390×844 布局的 `scrollWidth/scrollHeight` 为 `390/844`，没有新增溢出；粗指针隐藏由 CSS 媒体查询与可执行契约覆盖，内置浏览器的小视口本身仍报告 fine pointer。
 - 最终桌面检查中两个透明素材的自然尺寸为 320×320 和 192×192，控制台 warning/error 为 0。
+- 精细指针环境下 `html`、`body`、全部后代与伪元素均强制 `cursor: none`；粗指针规则恢复 `cursor: auto` 并隐藏自定义光。
 
 ## 可执行证据
 

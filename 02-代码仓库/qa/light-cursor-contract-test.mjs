@@ -150,7 +150,12 @@ assert.equal(reducedElement.style.getPropertyValue('--cursor-trail-y'), '0.00px'
 
 assert.match(htmlSource, /assets\/cursor-light-cloud\.png/);
 assert.match(htmlSource, /assets\/cursor-light-point\.png/);
-assert.match(htmlSource, /light-cursor\.js\?v=4\.3\.0-rc\.1/);
+assert.match(htmlSource, /light-cursor\.js\?v=4\.3\.0-rc\.2/);
+assert.match(
+  cssSource,
+  /@media \(hover: hover\) and \(pointer: fine\)[\s\S]*body \*[\s\S]*cursor: none !important/,
+  'fine-pointer descendants cannot restore the system arrow'
+);
 assert.match(cssSource, /@media \(hover: none\), \(pointer: coarse\)[\s\S]*\.contact-cursor[\s\S]*display: none/);
 assert.match(appSource, /centralTarget: interaction\.outer && isTrackingPhase\(phase\)/);
 assert.match(appSource, /cursor: lightCursor \? lightCursor\.getState\(\) : null/);
