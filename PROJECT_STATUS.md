@@ -12,8 +12,8 @@
 - 首页实现提交：`a79fe83`。
 - 当前候选标签：`v3.4.0-rc.1`。
 - 上一个回退点：`v3.3.0-rc.1`。
-- 本次文档整理分支：`codex/product-source-of-truth-v1`。
-- GitHub 默认 `main` 仍停在 `1a5e36d`，**目前不代表最新实现**。在它同步之前，新任务必须明确从上述当前分支或标签开始。
+- 文档事实源分支：`codex/product-source-of-truth-v1`；文档回退标签：`product-source-v1.0.0` 起。
+- GitHub 默认 `main` 的**页面实现仍以 `1a5e36d` 为基线**；即使它后续包含文档治理提交，也不代表 V3.4 页面代码已经合入。新实现任务必须明确从 `feature/sonic-contact-v3.4` 或 `v3.4.0-rc.1` 开始。
 
 ## 2. 首页现状
 
