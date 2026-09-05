@@ -31,6 +31,8 @@
     ? new window.LivingSoundscape(soundToggle)
     : null;
 
+  const formatGuide = (copy) => `“${copy}”`;
+
   const pointer = {
     x: window.innerWidth / 2,
     y: window.innerHeight / 2,
@@ -291,11 +293,12 @@
   }
 
   function setGuide(copy) {
-    if (guideText.textContent === copy || pendingGuide === copy) return;
+    const displayCopy = formatGuide(copy);
+    if (guideText.textContent === displayCopy || pendingGuide === copy) return;
     window.clearTimeout(guideSwapTimer);
 
     if (!guideText.textContent) {
-      guideText.textContent = copy;
+      guideText.textContent = displayCopy;
       pendingGuide = '';
       requestAnimationFrame(() => guideText.classList.add('is-visible'));
       return;
@@ -304,7 +307,7 @@
     pendingGuide = copy;
     guideText.classList.remove('is-visible');
     guideSwapTimer = window.setTimeout(() => {
-      guideText.textContent = copy;
+      guideText.textContent = displayCopy;
       guideText.classList.add('is-visible');
       pendingGuide = '';
     }, guideSwapDelay);
@@ -424,7 +427,7 @@
     contact.style.setProperty('--pupil-x', `${pupilOriginX.toFixed(2)}px`);
     contact.style.setProperty('--pupil-y', `${pupilOriginY.toFixed(2)}px`);
 
-    if (nextState.guide && guideText.textContent !== nextState.guide) {
+    if (nextState.guide && guideText.textContent !== formatGuide(nextState.guide)) {
       setGuide(nextState.guide);
     }
 
@@ -1078,7 +1081,8 @@
     const viewportCenterX = window.innerWidth / 2;
     const viewportCenterY = window.innerHeight / 2;
     const pupilX = viewportCenterX + gaze.x;
-    const pupilY = viewportCenterY + gaze.y;
+    const hotzoneOffsetY = window.innerHeight * (window.innerWidth <= 720 ? -0.09 : -0.11);
+    const pupilY = viewportCenterY + gaze.y + hotzoneOffsetY;
     const distance = Math.hypot(pointer.x - pupilX, pointer.y - pupilY);
     const shortSide = Math.min(window.innerWidth, window.innerHeight);
     const hasRealInput = pointer.hasMoved && pointer.inside && interaction.intentional;

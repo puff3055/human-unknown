@@ -325,7 +325,10 @@ assert.match(
   /data-intro="dissolving"\] \.identity,[\s\S]*?data-intro="contact"\] \.identity \{[\s\S]*?opacity: 1;/,
   'title and subtitle remain visible after contact begins'
 );
-assert.match(style, /\.guide\s*\{[\s\S]*?top: 34\.5vh;/);
+assert.match(style, /\.guide\s*\{[\s\S]*?top: 27\.5vh;/);
+assert.match(style, /--hotzone-y: -11vh;/);
+assert.match(style, /top: calc\(50% \+ var\(--pupil-y\) \+ var\(--hotzone-y\)\);/);
+assert.match(appSource, /const formatGuide = \(copy\) => `“\$\{copy\}”`;/);
 assert.match(style, /\.guide p\s*\{[\s\S]*?font-size: clamp\(10px, \.78vw, 13px\);/);
 assert.match(style, /data-countdown="active"\] \.gaze-countdown/);
 assert.match(style, /data-countdown="active"\] \.cosmos::after/);
