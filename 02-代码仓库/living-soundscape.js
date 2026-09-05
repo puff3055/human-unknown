@@ -9,8 +9,8 @@
   }
 
   function smoothstep(edge0, edge1, value) {
-    const t = clamp((value - edge0) / Math.max(0.0001, edge1 - edge0), 0, 1);
-    return t * t * (3 - 2 * t);
+    const amount = clamp((value - edge0) / Math.max(0.0001, edge1 - edge0), 0, 1);
+    return amount * amount * (3 - 2 * amount);
   }
 
   function randomBetween(min, max) {
@@ -29,7 +29,7 @@
     try {
       window.localStorage.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
     } catch (error) {
-      // The sound control remains functional when storage is unavailable.
+      // The visible control remains usable when storage is unavailable.
     }
   }
 
@@ -43,26 +43,32 @@
       this.activated = false;
       this.context = null;
       this.nodes = null;
-      this.voices = [];
-      this.noiseBuffer = null;
       this.levelData = null;
-      this.driftTimers = new Set();
+      this.timers = new Set();
+      this.activeEvents = [];
+      this.seenMetabolism = new Set();
       this.suspendTimer = 0;
       this.visibilityTimer = 0;
+      this.pressureTimer = 0;
       this.operationSerial = 0;
       this.telemetryFrame = 0;
       this.lastControlAt = 0;
-      this.lastPupilActive = false;
-      this.lastCuriosityAt = -Infinity;
+      this.lastPhase = 'opening';
+      this.lastNoticeSerial = 0;
+      this.lastMetabolismAt = -Infinity;
+      this.hoverEnteredAt = 0;
+      this.hoverTriggered = false;
+      this.duckUntil = 0;
+      this.diveTriggered = false;
       this.telemetry = {
         level: 0,
-        world: 0,
-        contact: 0,
-        stillness: 0,
-        approach: 0,
-        growth: 0,
-        decay: 0,
-        transfer: 0,
+        pressure: 0,
+        movement: 0,
+        resonance: 0,
+        focus: 0,
+        entry: 0,
+        silence: 0,
+        events: 0,
       };
 
       this.handleToggle = this.handleToggle.bind(this);
@@ -110,241 +116,243 @@
       parameter.setTargetAtTime(value, now, timeConstant);
     }
 
-    createNoiseBuffer(duration = 8) {
-      const length = Math.floor(this.context.sampleRate * duration);
-      const buffer = this.context.createBuffer(1, length, this.context.sampleRate);
-      const data = buffer.getChannelData(0);
-      let brown = 0;
-      let drift = 0;
-
-      for (let index = 0; index < length; index += 1) {
-        const white = Math.random() * 2 - 1;
-        brown = (brown + white * 0.026) / 1.022;
-        drift = drift * 0.9992 + white * 0.0008;
-        data[index] = clamp(brown * 2.7 + white * 0.075 + drift * 0.42, -1, 1);
-      }
-
-      return buffer;
-    }
-
-    createNoiseSource(offset = 0) {
-      const source = this.context.createBufferSource();
-      source.buffer = this.noiseBuffer;
-      source.loop = true;
-      source.start(this.context.currentTime, offset % this.noiseBuffer.duration);
-      return source;
-    }
-
-    createMetabolismVoice(index) {
-      const noise = this.createNoiseSource(randomBetween(0, this.noiseBuffer.duration));
-      const filter = this.context.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 420 + index * 170;
-      filter.Q.value = 0.72;
-
-      const noiseGain = this.createGain(0);
-      const tone = this.context.createOscillator();
-      tone.type = index === 1 ? 'triangle' : 'sine';
-      tone.frequency.value = 96 + index * 31;
-      const toneGain = this.createGain(0);
-      const panner = this.createPanner(0);
-
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(panner);
-      tone.connect(toneGain);
-      toneGain.connect(panner);
-      panner.connect(this.nodes.metabolismBus);
-      tone.start();
-
-      return {
-        noise,
-        filter,
-        noiseGain,
-        tone,
-        toneGain,
-        panner,
-      };
-    }
-
     buildGraph() {
       const context = this.context;
       const master = this.createGain(0);
-      const compressor = context.createDynamicsCompressor();
-      compressor.threshold.value = -24;
-      compressor.knee.value = 20;
-      compressor.ratio.value = 3.2;
-      compressor.attack.value = 0.045;
-      compressor.release.value = 0.72;
-
+      const sceneBus = this.createGain(1);
+      const movementBus = this.createGain(1);
+      const eventBus = this.createGain(1);
+      const focusFilter = context.createBiquadFilter();
+      focusFilter.type = 'lowpass';
+      focusFilter.frequency.value = 680;
+      focusFilter.Q.value = 0.38;
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.84;
+      analyser.smoothingTimeConstant = 0.86;
 
-      const mix = this.createGain(1);
-      const worldBus = this.createGain(1);
-      const interactionBus = this.createGain(1);
-      const metabolismBus = this.createGain(1);
-
-      worldBus.connect(mix);
-      interactionBus.connect(mix);
-      metabolismBus.connect(mix);
-      mix.connect(compressor);
-      compressor.connect(master);
+      movementBus.connect(sceneBus);
+      eventBus.connect(sceneBus);
+      sceneBus.connect(focusFilter);
+      focusFilter.connect(master);
       master.connect(analyser);
       analyser.connect(context.destination);
 
+      const movementFilter = context.createBiquadFilter();
+      movementFilter.type = 'lowpass';
+      movementFilter.frequency.value = 210;
+      movementFilter.Q.value = 0.72;
+      const movementPanner = this.createPanner(0);
+      const movementGain = this.createGain(0);
+      const movementLow = context.createOscillator();
+      movementLow.type = 'sine';
+      movementLow.frequency.value = 46.8;
+      const movementLowGain = this.createGain(0.76);
+      const movementHarmonic = context.createOscillator();
+      movementHarmonic.type = 'sine';
+      movementHarmonic.frequency.value = 103.7;
+      const movementHarmonicGain = this.createGain(0.20);
+      const movementColor = context.createOscillator();
+      movementColor.type = 'triangle';
+      movementColor.frequency.value = 72.4;
+      const movementColorGain = this.createGain(0.055);
+
+      movementLow.connect(movementLowGain);
+      movementHarmonic.connect(movementHarmonicGain);
+      movementColor.connect(movementColorGain);
+      movementLowGain.connect(movementFilter);
+      movementHarmonicGain.connect(movementFilter);
+      movementColorGain.connect(movementFilter);
+      movementFilter.connect(movementPanner);
+      movementPanner.connect(movementGain);
+      movementGain.connect(movementBus);
+      movementLow.start();
+      movementHarmonic.start();
+      movementColor.start();
+
       this.nodes = {
         master,
-        compressor,
+        sceneBus,
+        movementBus,
+        eventBus,
+        focusFilter,
         analyser,
-        mix,
-        worldBus,
-        interactionBus,
-        metabolismBus,
+        movementFilter,
+        movementPanner,
+        movementGain,
+        movementLow,
+        movementLowGain,
+        movementHarmonic,
+        movementHarmonicGain,
+        movementColor,
+        movementColorGain,
       };
-      this.noiseBuffer = this.createNoiseBuffer();
       this.levelData = new Float32Array(analyser.fftSize);
-
-      const massFilter = context.createBiquadFilter();
-      massFilter.type = 'lowpass';
-      massFilter.frequency.value = 178;
-      massFilter.Q.value = 0.76;
-      const massA = context.createOscillator();
-      massA.type = 'sine';
-      massA.frequency.value = 47.5;
-      const massAGain = this.createGain(0.020);
-      const massB = context.createOscillator();
-      massB.type = 'sine';
-      massB.frequency.value = 74.2;
-      const massBGain = this.createGain(0.008);
-
-      massA.connect(massAGain);
-      massB.connect(massBGain);
-      massAGain.connect(massFilter);
-      massBGain.connect(massFilter);
-      massFilter.connect(worldBus);
-      massA.start();
-      massB.start();
-
-      const worldNoise = this.createNoiseSource(randomBetween(0, this.noiseBuffer.duration));
-      const worldNoiseFilter = context.createBiquadFilter();
-      worldNoiseFilter.type = 'lowpass';
-      worldNoiseFilter.frequency.value = 540;
-      worldNoiseFilter.Q.value = 0.88;
-      const worldNoisePanner = this.createPanner(-0.08);
-      const worldNoiseGain = this.createGain(0.018);
-      worldNoise.connect(worldNoiseFilter);
-      worldNoiseFilter.connect(worldNoisePanner);
-      worldNoisePanner.connect(worldNoiseGain);
-      worldNoiseGain.connect(worldBus);
-
-      const airNoise = this.createNoiseSource(randomBetween(0, this.noiseBuffer.duration));
-      const airFilter = context.createBiquadFilter();
-      airFilter.type = 'bandpass';
-      airFilter.frequency.value = 2240;
-      airFilter.Q.value = 0.62;
-      const airPanner = this.createPanner(0.12);
-      const airGain = this.createGain(0.005);
-      airNoise.connect(airFilter);
-      airFilter.connect(airPanner);
-      airPanner.connect(airGain);
-      airGain.connect(worldBus);
-
-      const contactNoise = this.createNoiseSource(randomBetween(0, this.noiseBuffer.duration));
-      const contactFilter = context.createBiquadFilter();
-      contactFilter.type = 'bandpass';
-      contactFilter.frequency.value = 780;
-      contactFilter.Q.value = 1.1;
-      const contactPanner = this.createPanner(0);
-      const contactGain = this.createGain(0);
-      contactNoise.connect(contactFilter);
-      contactFilter.connect(contactPanner);
-      contactPanner.connect(contactGain);
-      contactGain.connect(interactionBus);
-
-      const focusTone = context.createOscillator();
-      focusTone.type = 'sine';
-      focusTone.frequency.value = 103;
-      const focusOvertone = context.createOscillator();
-      focusOvertone.type = 'sine';
-      focusOvertone.frequency.value = 227;
-      const focusToneGain = this.createGain(0);
-      const focusOvertoneGain = this.createGain(0);
-      const focusPanner = this.createPanner(0);
-      focusTone.connect(focusToneGain);
-      focusOvertone.connect(focusOvertoneGain);
-      focusToneGain.connect(focusPanner);
-      focusOvertoneGain.connect(focusPanner);
-      focusPanner.connect(interactionBus);
-      focusTone.start();
-      focusOvertone.start();
-
-      Object.assign(this.nodes, {
-        massA,
-        massAGain,
-        massB,
-        massBGain,
-        massFilter,
-        worldNoise,
-        worldNoiseFilter,
-        worldNoisePanner,
-        worldNoiseGain,
-        airNoise,
-        airFilter,
-        airPanner,
-        airGain,
-        contactNoise,
-        contactFilter,
-        contactPanner,
-        contactGain,
-        focusTone,
-        focusOvertone,
-        focusToneGain,
-        focusOvertoneGain,
-        focusPanner,
-      });
-
-      this.voices = [0, 1, 2].map((index) => this.createMetabolismVoice(index));
-      this.scheduleWorldDrift();
+      this.schedulePressure();
     }
 
-    scheduleWorldDrift() {
-      const schedule = (minimum, maximum, callback) => {
-        const queue = () => {
-          const timer = window.setTimeout(() => {
-            this.driftTimers.delete(timer);
-            if (!this.context || !this.nodes) return;
-            callback(this.context.currentTime);
-            queue();
-          }, randomBetween(minimum, maximum));
-          this.driftTimers.add(timer);
-        };
-        queue();
-      };
+    trackTimer(callback, delay) {
+      const timer = window.setTimeout(() => {
+        this.timers.delete(timer);
+        callback();
+      }, delay);
+      this.timers.add(timer);
+      return timer;
+    }
 
-      schedule(3600, 8400, (now) => {
-        this.nodes.massFilter.frequency.setTargetAtTime(randomBetween(132, 228), now, 1.8);
-        this.nodes.massAGain.gain.setTargetAtTime(randomBetween(0.016, 0.024), now, 2.4);
-        this.nodes.massB.frequency.setTargetAtTime(randomBetween(68, 81), now, 2.8);
-      });
+    schedulePressure() {
+      window.clearTimeout(this.pressureTimer);
+      this.pressureTimer = this.trackTimer(() => {
+        if (
+          this.enabled
+          && this.activated
+          && this.context
+          && this.context.state === 'running'
+          && this.lastPhase !== 'entering'
+          && this.lastPhase !== 'handoff'
+        ) {
+          this.triggerPressure(randomBetween(0.58, 0.88));
+        }
+        this.schedulePressure();
+      }, randomBetween(7800, 15800));
+    }
 
-      schedule(2700, 6900, (now) => {
-        this.nodes.worldNoiseFilter.frequency.setTargetAtTime(randomBetween(390, 760), now, 1.5);
-        this.nodes.worldNoiseGain.gain.setTargetAtTime(randomBetween(0.013, 0.022), now, 2.1);
-        this.nodes.worldNoisePanner.pan.setTargetAtTime(randomBetween(-0.22, 0.22), now, 2.7);
-      });
+    registerEvent(kind, durationMs, peak) {
+      this.activeEvents.push({ kind, startedAt: performance.now(), durationMs, peak });
+    }
 
-      schedule(5100, 11800, (now) => {
-        this.nodes.airFilter.frequency.setTargetAtTime(randomBetween(1500, 3900), now, 2.6);
-        this.nodes.airGain.gain.setTargetAtTime(randomBetween(0.003, 0.0065), now, 2.2);
-        this.nodes.airPanner.pan.setTargetAtTime(randomBetween(-0.34, 0.34), now, 3.2);
+    cleanupNodes(nodes, durationMs) {
+      this.trackTimer(() => {
+        nodes.forEach((node) => {
+          try {
+            node.disconnect();
+          } catch (error) {
+            // A closed AudioContext may already have released the node.
+          }
+        });
+      }, durationMs + 180);
+    }
+
+    createEventPair(options) {
+      if (!this.context || !this.nodes || this.context.state !== 'running') return;
+      const audioNow = this.context.currentTime;
+      const duration = options.duration;
+      const panner = this.createPanner(clamp(options.pan || 0, -0.34, 0.34));
+      const gain = this.createGain(1);
+      gain.connect(panner);
+      panner.connect(this.nodes.eventBus);
+
+      const low = this.context.createOscillator();
+      low.type = options.lowType || 'sine';
+      low.frequency.setValueAtTime(options.lowFrom, audioNow);
+      low.frequency.exponentialRampToValueAtTime(options.lowTo, audioNow + duration * 0.82);
+      const lowGain = this.createGain(0.0001);
+      lowGain.gain.exponentialRampToValueAtTime(options.lowLevel, audioNow + options.attack);
+      lowGain.gain.setTargetAtTime(0.0001, audioNow + options.releaseAt, options.release);
+      low.connect(lowGain);
+      lowGain.connect(gain);
+
+      const upper = this.context.createOscillator();
+      upper.type = options.upperType || 'sine';
+      upper.frequency.setValueAtTime(options.upperFrom, audioNow);
+      upper.frequency.exponentialRampToValueAtTime(options.upperTo, audioNow + duration * 0.76);
+      const upperGain = this.createGain(0.0001);
+      upperGain.gain.exponentialRampToValueAtTime(options.upperLevel, audioNow + options.attack * 1.18);
+      upperGain.gain.setTargetAtTime(0.0001, audioNow + options.releaseAt, options.release * 0.82);
+      upper.connect(upperGain);
+      upperGain.connect(gain);
+
+      low.start(audioNow);
+      upper.start(audioNow);
+      low.stop(audioNow + duration);
+      upper.stop(audioNow + duration);
+      this.cleanupNodes([low, lowGain, upper, upperGain, gain, panner], duration * 1000);
+      this.registerEvent(options.kind, duration * 1000, options.lowLevel + options.upperLevel);
+    }
+
+    triggerPressure(strength = 0.72) {
+      const amount = clamp(strength, 0.35, 1);
+      const base = randomBetween(36.5, 52.5);
+      const ratio = randomBetween(2.17, 2.39);
+      const duration = randomBetween(4.4, 6.3);
+      this.createEventPair({
+        kind: 'pressure', duration,
+        pan: randomBetween(-0.14, 0.14),
+        lowFrom: base, lowTo: base * randomBetween(0.94, 1.035),
+        upperFrom: base * ratio,
+        upperTo: base * (ratio + randomBetween(-0.055, 0.075)),
+        lowLevel: 0.0115 * amount, upperLevel: 0.0022 * amount,
+        attack: randomBetween(1.0, 1.55),
+        releaseAt: randomBetween(2.2, 3.3),
+        release: randomBetween(0.75, 1.08),
       });
+    }
+
+    triggerHoverResonance(pan = 0) {
+      const base = randomBetween(41.0, 48.5);
+      this.createEventPair({
+        kind: 'resonance', duration: 4.2, pan: pan * 0.28,
+        lowFrom: base, lowTo: base * 0.91,
+        upperFrom: base * 2.31, upperTo: base * 2.47,
+        lowLevel: 0.012, upperLevel: 0.0031,
+        attack: 0.82, releaseAt: 2.0, release: 0.72,
+      });
+    }
+
+    triggerNotice(strength = 0.9) {
+      const amount = clamp(strength, 0.55, 1);
+      this.duckUntil = performance.now() + 2800;
+      this.createEventPair({
+        kind: 'notice', duration: 3.6, pan: 0,
+        lowFrom: 36.8, lowTo: 51.2,
+        upperFrom: 88.7, upperTo: 116.3,
+        lowLevel: 0.022 * amount, upperLevel: 0.0042 * amount,
+        attack: 0.46, releaseAt: 1.35, release: 0.76,
+      });
+    }
+
+    triggerDive() {
+      this.createEventPair({
+        kind: 'dive', duration: 4.0, pan: 0,
+        lowFrom: 54.0, lowTo: 31.5,
+        upperFrom: 113.0, upperTo: 63.7,
+        lowLevel: 0.019, upperLevel: 0.0035,
+        attack: 0.34, releaseAt: 2.35, release: 0.72,
+      });
+    }
+
+    triggerMetabolicWhisper(event) {
+      const kind = event.kind > 0.5 ? 'growth' : event.kind < -0.5 ? 'decay' : 'transfer';
+      const base = kind === 'growth' ? 44.6 : kind === 'decay' ? 49.8 : 39.7;
+      const direction = kind === 'growth' ? 1.045 : kind === 'decay' ? 0.91 : 0.98;
+      this.createEventPair({
+        kind: 'metabolism', duration: 2.8,
+        pan: clamp(event.x || 0, -0.30, 0.30),
+        lowFrom: base, lowTo: base * direction,
+        upperFrom: base * 2.21,
+        upperTo: base * (kind === 'growth' ? 2.37 : 2.13),
+        lowLevel: 0.0046, upperLevel: 0.0011,
+        attack: 0.62, releaseAt: 1.18, release: 0.55,
+      });
+    }
+
+    maybeTriggerMetabolism(events, now) {
+      if (!Array.isArray(events) || now - this.lastMetabolismAt < 4400) return;
+      const candidate = events.find((event) => {
+        if (!event || !Number.isFinite(event.startedAt) || !event.duration) return false;
+        const key = `${event.kind}:${event.startedAt}`;
+        if (this.seenMetabolism.has(key)) return false;
+        const progress = (now - event.startedAt) / event.duration;
+        return progress >= 0.46 && progress <= 0.72;
+      });
+      if (!candidate) return;
+      this.seenMetabolism.add(`${candidate.kind}:${candidate.startedAt}`);
+      this.lastMetabolismAt = now;
+      this.triggerMetabolicWhisper(candidate);
+      if (this.seenMetabolism.size > 36) this.seenMetabolism.clear();
     }
 
     async ensureAudio() {
       if (!this.supported) return false;
-
       if (!this.context) {
         try {
           this.context = new AudioContextClass({ latencyHint: 'interactive' });
@@ -353,16 +361,22 @@
         }
         this.buildGraph();
       }
-
       if (this.context.state !== 'running') {
+        let resumeTimeout = 0;
         try {
-          await this.context.resume();
+          await Promise.race([
+            this.context.resume(),
+            new Promise((resolve) => {
+              resumeTimeout = window.setTimeout(resolve, 900);
+            }),
+          ]);
         } catch (error) {
           this.activated = false;
           return false;
+        } finally {
+          window.clearTimeout(resumeTimeout);
         }
       }
-
       this.activated = this.context.state === 'running';
       return this.activated;
     }
@@ -382,38 +396,33 @@
           this.setUiState('armed');
           return false;
         }
-
         const now = this.context.currentTime;
         this.nodes.master.gain.cancelScheduledValues(now);
         this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, now);
-        this.nodes.master.gain.setTargetAtTime(0.72, now, 0.52);
+        this.nodes.master.gain.setTargetAtTime(0.78, now, 0.48);
         this.setUiState('on');
         return true;
       }
 
       this.setUiState('off');
       if (!this.context || !this.nodes) return true;
-
       const now = this.context.currentTime;
       this.nodes.master.gain.cancelScheduledValues(now);
       this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, now);
-      this.nodes.master.gain.setTargetAtTime(0, now, 0.20);
+      this.nodes.master.gain.setTargetAtTime(0, now, 0.18);
       this.suspendTimer = window.setTimeout(() => {
         if (!this.enabled && this.context && this.context.state === 'running') {
           this.context.suspend().catch(() => {});
         }
-      }, 1150);
+      }, 900);
       return true;
     }
 
     async handleToggle(event) {
       event.preventDefault();
       event.stopPropagation();
-      if (this.enabled && !this.activated) {
-        await this.setEnabled(true, false);
-      } else {
-        await this.setEnabled(!this.enabled);
-      }
+      if (this.enabled && !this.activated) await this.setEnabled(true, false);
+      else await this.setEnabled(!this.enabled);
     }
 
     async handleGesture(event) {
@@ -424,34 +433,29 @@
 
     async handleKeydown(event) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key.toLowerCase() === 'm') {
-        event.preventDefault();
-        if (this.enabled && !this.activated) {
-          await this.setEnabled(true, false);
-        } else {
-          await this.setEnabled(!this.enabled);
-        }
-      }
+      if (event.key.toLowerCase() !== 'm') return;
+      event.preventDefault();
+      if (this.enabled && !this.activated) await this.setEnabled(true, false);
+      else await this.setEnabled(!this.enabled);
     }
 
     handleVisibility() {
       if (!this.context || !this.nodes) return;
       window.clearTimeout(this.visibilityTimer);
-
       if (document.hidden) {
         const now = this.context.currentTime;
         this.nodes.master.gain.cancelScheduledValues(now);
-        this.nodes.master.gain.setTargetAtTime(0, now, 0.12);
+        this.nodes.master.gain.setTargetAtTime(0, now, 0.10);
         this.visibilityTimer = window.setTimeout(() => {
           if (document.hidden && this.context && this.context.state === 'running') {
             this.context.suspend().catch(() => {});
           }
-        }, 620);
+        }, 520);
       } else if (this.enabled) {
         this.ensureAudio().then((didStart) => {
           if (!didStart || !this.nodes || !this.enabled || document.hidden) return;
           const now = this.context.currentTime;
-          this.nodes.master.gain.setTargetAtTime(0.72, now, 0.42);
+          this.nodes.master.gain.setTargetAtTime(0.78, now, 0.38);
           this.setUiState('on');
         });
       }
@@ -461,12 +465,8 @@
       if (!this.toggle) return;
       const visiblyOn = state === 'on' || state === 'starting' || state === 'armed';
       const label = visiblyOn
-        ? state === 'armed'
-          ? '声音已开启，触碰页面后播放'
-          : '关闭声音'
-        : state === 'unsupported'
-          ? '当前浏览器不支持声音'
-          : '开启声音';
+        ? state === 'armed' ? '声音已开启，触碰页面后播放' : '关闭声音'
+        : state === 'unsupported' ? '当前浏览器不支持声音' : '开启声音';
 
       this.toggle.dataset.soundState = state;
       this.toggle.classList.toggle('is-on', visiblyOn);
@@ -475,250 +475,129 @@
       this.toggle.setAttribute('aria-label', label);
       this.toggle.title = label;
       if (this.icon) {
-        this.icon.src = visiblyOn
-          ? 'assets/tabler-volume.svg'
-          : 'assets/tabler-volume-off.svg';
+        this.icon.src = visiblyOn ? 'assets/tabler-volume.svg' : 'assets/tabler-volume-off.svg';
       }
       if (this.status) {
         this.status.textContent = state === 'on'
           ? '声音已开启'
-          : state === 'armed'
-            ? '声音将在触碰页面后开启'
-            : '声音已关闭';
+          : state === 'armed' ? '声音将在触碰页面后开启' : '声音已关闭';
       }
     }
 
-    getWaveEnergy(waves, now) {
-      if (!Array.isArray(waves) || waves.length === 0) return 0;
-      return clamp(waves.reduce((total, wave) => {
-        const progress = clamp((now - wave.startedAt) / wave.duration, 0, 1);
-        return total + wave.energy * Math.pow(1 - progress, 1.45);
-      }, 0), 0, 1);
-    }
-
-    updateMetabolismVoices(events, now, audioNow) {
-      const levels = { growth: 0, decay: 0, transfer: 0 };
-
-      this.voices.forEach((voice, index) => {
-        const event = events && events[index];
-        if (!event) {
-          this.glide(voice.noiseGain.gain, 0, audioNow, 0.15);
-          this.glide(voice.toneGain.gain, 0, audioNow, 0.15);
-          return;
-        }
-
-        const rawProgress = (now - event.startedAt) / event.duration;
-        const active = rawProgress >= 0 && rawProgress <= 1;
-        const progress = clamp(rawProgress, 0, 1);
-        const energy = active ? clamp(event.energy || 0.9, 0, 1.18) : 0;
-        let envelope = 0;
-        let frequency = 520;
-        let resonance = 0.8;
-        let noiseLevel = 0;
-        let toneLevel = 0;
-        let toneFrequency = 110;
-        let type = 'transfer';
-
-        if (event.kind > 0.5) {
-          type = 'growth';
-          envelope = smoothstep(0.02, 0.18, progress)
-            * (1 - smoothstep(0.80, 1, progress));
-          frequency = 380 + progress * 920 + Math.sin(progress * Math.PI * 3) * 80;
-          resonance = 0.72 + progress * 0.68;
-          noiseLevel = envelope * energy * 0.0125;
-          toneLevel = envelope * energy * 0.0024;
-          toneFrequency = 102 + progress * 96;
-        } else if (event.kind < -0.5) {
-          type = 'decay';
-          envelope = smoothstep(0.01, 0.10, progress)
-            * (1 - smoothstep(0.84, 1, progress));
-          frequency = 1420 - progress * 1050 + Math.sin(progress * 21) * 65;
-          resonance = 1.12 + smoothstep(0.24, 0.90, progress) * 1.1;
-          noiseLevel = envelope * energy * (0.0115 + progress * 0.0030);
-          toneLevel = envelope * energy * 0.0018 * (1 - progress * 0.58);
-          toneFrequency = 164 - progress * 78;
-        } else {
-          envelope = smoothstep(0.02, 0.13, progress)
-            * (1 - smoothstep(0.82, 1, progress));
-          frequency = 660 + Math.sin(progress * Math.PI) * 940;
-          resonance = 0.64 + Math.sin(progress * Math.PI) * 0.72;
-          noiseLevel = envelope * energy * 0.008;
-          toneLevel = envelope * energy * 0.0014;
-          toneFrequency = 128 + Math.sin(progress * Math.PI) * 82;
-        }
-
-        const travel = type === 'transfer'
-          ? event.directionX * event.seed * progress * 0.55
-          : 0;
-        const pan = clamp(event.x + travel, -0.78, 0.78);
-        this.glide(voice.filter.frequency, clamp(frequency, 120, 2600), audioNow, 0.08);
-        this.glide(voice.filter.Q, resonance, audioNow, 0.10);
-        this.glide(voice.noiseGain.gain, noiseLevel, audioNow, 0.08);
-        this.glide(voice.tone.frequency, toneFrequency, audioNow, 0.12);
-        this.glide(voice.toneGain.gain, toneLevel, audioNow, 0.10);
-        this.glide(voice.panner.pan, pan, audioNow, 0.09);
-        levels[type] += noiseLevel + toneLevel;
+    updateEventTelemetry(now) {
+      this.activeEvents = this.activeEvents.filter((event) => now - event.startedAt < event.durationMs);
+      let pressure = 0;
+      let resonance = 0;
+      this.activeEvents.forEach((event) => {
+        const progress = clamp((now - event.startedAt) / event.durationMs, 0, 1);
+        const envelope = smoothstep(0, 0.22, progress) * (1 - smoothstep(0.56, 1, progress));
+        const level = event.peak * envelope;
+        if (event.kind === 'pressure') pressure += level;
+        else resonance += level;
       });
-
-      return levels;
+      this.telemetry.pressure = pressure;
+      this.telemetry.resonance = resonance;
+      this.telemetry.events = this.activeEvents.length;
     }
 
-    triggerCuriosity(strength, pan) {
-      if (!this.context || !this.nodes || this.context.state !== 'running') return;
-      const audioNow = this.context.currentTime;
-      const amount = clamp(strength || 0.8, 0.55, 1);
-      const panner = this.createPanner(clamp(pan, -0.34, 0.34));
-      const eventBus = this.createGain(1);
-      eventBus.connect(panner);
-      panner.connect(this.nodes.interactionBus);
-
-      const low = this.context.createOscillator();
-      low.type = 'sine';
-      low.frequency.setValueAtTime(82 + amount * 12, audioNow);
-      low.frequency.exponentialRampToValueAtTime(43, audioNow + 1.35);
-      const lowGain = this.createGain(0.0001);
-      lowGain.gain.exponentialRampToValueAtTime(0.026 * amount, audioNow + 0.22);
-      lowGain.gain.setTargetAtTime(0.0001, audioNow + 0.56, 0.42);
-      low.connect(lowGain);
-      lowGain.connect(eventBus);
-
-      const upper = this.context.createOscillator();
-      upper.type = 'sine';
-      upper.frequency.setValueAtTime(178, audioNow);
-      upper.frequency.exponentialRampToValueAtTime(438 + amount * 170, audioNow + 0.92);
-      const upperGain = this.createGain(0.0001);
-      upperGain.gain.exponentialRampToValueAtTime(0.006 * amount, audioNow + 0.36);
-      upperGain.gain.setTargetAtTime(0.0001, audioNow + 0.88, 0.36);
-      upper.connect(upperGain);
-      upperGain.connect(eventBus);
-
-      const noise = this.context.createBufferSource();
-      noise.buffer = this.noiseBuffer;
-      noise.loop = true;
-      const noiseFilter = this.context.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.setValueAtTime(540, audioNow);
-      noiseFilter.frequency.exponentialRampToValueAtTime(1760, audioNow + 1.18);
-      noiseFilter.Q.value = 0.86;
-      const noiseGain = this.createGain(0.0001);
-      noiseGain.gain.exponentialRampToValueAtTime(0.010 * amount, audioNow + 0.30);
-      noiseGain.gain.setTargetAtTime(0.0001, audioNow + 0.74, 0.40);
-      noise.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(eventBus);
-
-      low.start(audioNow);
-      upper.start(audioNow);
-      noise.start(audioNow, randomBetween(0, this.noiseBuffer.duration), 2.3);
-      low.stop(audioNow + 2.5);
-      upper.stop(audioNow + 2.5);
-
-      low.addEventListener('ended', () => {
-        low.disconnect();
-        upper.disconnect();
-        noise.disconnect();
-        lowGain.disconnect();
-        upperGain.disconnect();
-        noiseFilter.disconnect();
-        noiseGain.disconnect();
-        eventBus.disconnect();
-        panner.disconnect();
-      }, { once: true });
-    }
-
-    update(state, deltaSeconds) {
-      if (!this.enabled || !this.activated || !this.context || !this.nodes) {
-        return;
-      }
+    update(state) {
+      if (!this.enabled || !this.activated || !this.context || !this.nodes) return;
       if (this.context.state !== 'running') return;
-
       const now = performance.now();
       if (now - this.lastControlAt < 42) return;
       this.lastControlAt = now;
 
       const pointer = state.pointer || {};
       const presence = state.presence || {};
-      const pupil = state.pupil || {};
-      const metabolism = state.metabolism || {};
+      const encounter = state.encounter || {};
+      const phase = encounter.phase || state.phase || 'opening';
       const audioNow = this.context.currentTime;
       const width = Math.max(1, window.innerWidth);
       const height = Math.max(1, window.innerHeight);
-      const pan = clamp((pointer.x / width) * 2 - 1, -0.72, 0.72);
-      const vertical = clamp(pointer.y / height, 0, 1);
+      const pan = clamp(((pointer.x || width / 2) / width) * 2 - 1, -0.45, 0.45);
+      const vertical = clamp((pointer.y || height / 2) / height, 0, 1);
       const speed = Math.max(0, pointer.speed || 0);
-      const speedAmount = 1 - Math.exp(-speed / 430);
+      const speedAmount = 1 - Math.exp(-speed / 520);
       const disturbance = clamp(pointer.disturbance || 0, 0, 1);
-      const stillness = clamp(pointer.stillness || 0, 0, 1);
-      const waveEnergy = this.getWaveEnergy(state.waves, now);
-      const study = clamp(presence.study || 0, 0, 1);
-      const approach = clamp(presence.approach || 0, 0, 1);
-      const movingLevel = clamp(
-        disturbance * 0.72 + speedAmount * 0.24 + waveEnergy * 0.34,
+      const movingPhase = phase === 'contact' || phase === 'near'
+        || phase === 'noticed' || phase === 'aligned';
+      const movement = movingPhase ? clamp(speedAmount * 0.72 + disturbance * 0.28, 0, 1) : 0;
+      const focus = clamp(
+        (presence.approach || 0) * 0.55 + (encounter.hold || 0) * 0.45,
         0,
         1
       );
-      const contactLevel = movingLevel * (0.007 + speedAmount * 0.034);
-      const focusLevel = clamp(study * 0.76 + stillness * 0.18, 0, 1)
-        * (1 - speedAmount * 0.72);
+      const entry = clamp(encounter.entry || 0, 0, 1);
+      const boundarySilence = clamp(encounter.boundarySilence || 0, 0, 1);
+      const baseFrequency = 43.5 + movement * 13.5 + (0.5 - vertical) * 3.2;
 
+      this.glide(this.nodes.movementLow.frequency, baseFrequency, audioNow, 0.11);
       this.glide(
-        this.nodes.contactFilter.frequency,
-        420 + speedAmount * 1680 + (1 - vertical) * 360,
+        this.nodes.movementHarmonic.frequency,
+        baseFrequency * (2.23 + pan * 0.08),
         audioNow,
-        speedAmount > 0.18 ? 0.028 : 0.11
+        0.16
       );
-      this.glide(this.nodes.contactFilter.Q, 0.82 + focusLevel * 2.4, audioNow, 0.08);
-      this.glide(this.nodes.contactPanner.pan, pan, audioNow, 0.035);
-      this.glide(this.nodes.contactGain.gain, contactLevel, audioNow, 0.055);
-
-      this.glide(this.nodes.focusTone.frequency, 92 + pan * 8 + approach * 17, audioNow, 0.18);
-      this.glide(this.nodes.focusOvertone.frequency, 214 + vertical * 42 + study * 51, audioNow, 0.24);
+      this.glide(this.nodes.movementColor.frequency, baseFrequency * 1.57, audioNow, 0.14);
+      this.glide(this.nodes.movementFilter.frequency, 155 + movement * 92, audioNow, 0.13);
+      this.glide(this.nodes.movementPanner.pan, pan * (1 - focus * 0.82), audioNow, 0.10);
       this.glide(
-        this.nodes.focusToneGain.gain,
-        focusLevel * 0.0046 + approach * 0.0078,
+        this.nodes.movementGain.gain,
+        movement * (0.006 + speedAmount * 0.0105) * (1 - focus * 0.48),
         audioNow,
-        0.22
-      );
-      this.glide(
-        this.nodes.focusOvertoneGain.gain,
-        focusLevel * 0.0016 + approach * 0.0022,
-        audioNow,
-        0.28
-      );
-      this.glide(this.nodes.focusPanner.pan, pan * 0.46, audioNow, 0.18);
-      this.glide(
-        this.nodes.worldBus.gain,
-        1 - approach * 0.17 - study * 0.08,
-        audioNow,
-        0.36
+        movement > 0.08 ? 0.10 : 0.72
       );
 
-      const metabolismLevels = this.updateMetabolismVoices(
-        metabolism.events,
-        now,
-        audioNow
-      );
-
-      if (
-        pupil.active
-        && !this.lastPupilActive
-        && now - this.lastCuriosityAt > 2200
-      ) {
-        this.triggerCuriosity(pupil.amplitude || pupil.value || 0.8, pan);
-        this.lastCuriosityAt = now;
+      if (encounter.noticeSerial > this.lastNoticeSerial) {
+        this.lastNoticeSerial = encounter.noticeSerial;
+        this.triggerNotice(1);
       }
-      this.lastPupilActive = Boolean(pupil.active);
 
-      this.telemetry.world = this.nodes.worldBus.gain.value;
-      this.telemetry.contact = contactLevel;
-      this.telemetry.stillness = focusLevel;
-      this.telemetry.approach = approach;
-      this.telemetry.growth = metabolismLevels.growth;
-      this.telemetry.decay = metabolismLevels.decay;
-      this.telemetry.transfer = metabolismLevels.transfer;
+      const inOuterField = Boolean(encounter.outerDwell > 0 || phase === 'near');
+      if (inOuterField) {
+        if (!this.hoverEnteredAt) this.hoverEnteredAt = now;
+        if (!this.hoverTriggered && now - this.hoverEnteredAt >= 820) {
+          this.hoverTriggered = true;
+          this.triggerHoverResonance(pan);
+        }
+      } else {
+        this.hoverEnteredAt = 0;
+        this.hoverTriggered = false;
+      }
+
+      if (phase === 'entering' && !this.diveTriggered) {
+        this.diveTriggered = true;
+        this.triggerDive();
+      }
+      this.maybeTriggerMetabolism(state.metabolism && state.metabolism.events, now);
+
+      const ducked = now < this.duckUntil;
+      this.glide(this.nodes.movementBus.gain, ducked ? 0.24 : 1, audioNow, ducked ? 0.08 : 0.72);
+      this.glide(
+        this.nodes.focusFilter.frequency,
+        phase === 'handoff' ? 72 : 680 - focus * 430 - entry * 170,
+        audioNow,
+        entry > 0 ? 0.12 : 0.34
+      );
+      this.glide(this.nodes.focusFilter.Q, 0.38 + focus * 0.72, audioNow, 0.24);
+
+      const boundaryActive = boundarySilence > 0.18;
+      const sceneLevel = phase === 'handoff' ? 0 : boundaryActive ? 0.006 : 1;
+      this.glide(
+        this.nodes.sceneBus.gain,
+        sceneLevel,
+        audioNow,
+        boundaryActive ? 0.022 : 0.12
+      );
+      this.lastPhase = phase;
+      this.telemetry.movement = movement;
+      this.telemetry.focus = focus;
+      this.telemetry.entry = entry;
+      this.telemetry.silence = boundarySilence;
+      this.updateEventTelemetry(now);
 
       this.telemetryFrame += 1;
-      if (this.telemetryFrame % 8 === 0) this.updateTelemetry(deltaSeconds);
+      if (this.telemetryFrame % 8 === 0) this.updateTelemetry();
     }
 
     updateTelemetry() {
@@ -731,19 +610,15 @@
       const rms = Math.sqrt(sum / this.levelData.length);
       this.telemetry.level = rms;
       this.toggle.dataset.soundLevel = rms.toFixed(4);
-      this.toggle.dataset.worldLevel = this.telemetry.world.toFixed(3);
-      this.toggle.dataset.contactLevel = this.telemetry.contact.toFixed(4);
-      this.toggle.dataset.stillnessLevel = this.telemetry.stillness.toFixed(3);
-      this.toggle.dataset.approachLevel = this.telemetry.approach.toFixed(3);
-      this.toggle.dataset.growthLevel = this.telemetry.growth.toFixed(4);
-      this.toggle.dataset.decayLevel = this.telemetry.decay.toFixed(4);
-      this.toggle.dataset.transferLevel = this.telemetry.transfer.toFixed(4);
-      const visibleLevel = clamp(rms * 24, 0, 1);
-      this.toggle.style.setProperty('--sound-glow', `${8 + visibleLevel * 15}px`);
-      this.toggle.style.setProperty(
-        '--sound-glow-alpha',
-        (0.015 + visibleLevel * 0.04).toFixed(3)
-      );
+      this.toggle.dataset.pressureLevel = this.telemetry.pressure.toFixed(4);
+      this.toggle.dataset.movementLevel = this.telemetry.movement.toFixed(3);
+      this.toggle.dataset.resonanceLevel = this.telemetry.resonance.toFixed(4);
+      this.toggle.dataset.focusLevel = this.telemetry.focus.toFixed(3);
+      this.toggle.dataset.entryLevel = this.telemetry.entry.toFixed(3);
+      this.toggle.dataset.silenceLevel = this.telemetry.silence.toFixed(3);
+      const visibleLevel = clamp(rms * 26, 0, 1);
+      this.toggle.style.setProperty('--sound-glow', `${8 + visibleLevel * 13}px`);
+      this.toggle.style.setProperty('--sound-glow-alpha', (0.015 + visibleLevel * 0.035).toFixed(3));
     }
 
     getState() {
@@ -753,6 +628,7 @@
         activated: this.activated,
         contextState: this.context ? this.context.state : 'uninitialized',
         uiState: this.toggle ? this.toggle.dataset.soundState : 'missing',
+        architecture: 'sparse-oscillator-events',
         telemetry: { ...this.telemetry },
       };
     }
@@ -760,8 +636,9 @@
     destroy() {
       window.clearTimeout(this.suspendTimer);
       window.clearTimeout(this.visibilityTimer);
-      this.driftTimers.forEach((timer) => window.clearTimeout(timer));
-      this.driftTimers.clear();
+      window.clearTimeout(this.pressureTimer);
+      this.timers.forEach((timer) => window.clearTimeout(timer));
+      this.timers.clear();
       if (this.toggle) this.toggle.removeEventListener('click', this.handleToggle);
       document.removeEventListener('keydown', this.handleKeydown);
       document.removeEventListener('pointerdown', this.handleGesture, { capture: true });

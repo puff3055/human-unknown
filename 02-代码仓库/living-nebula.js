@@ -31,6 +31,7 @@
     uniform float uStudy;
     uniform float uApproach;
     uniform float uPupilDilation;
+    uniform vec3 uNarrative;
     uniform vec4 uFlow;
     uniform vec4 uLifeA[3];
     uniform vec4 uLifeB[3];
@@ -75,7 +76,30 @@
       vec2 radial = metric / max(radius, 0.0001);
       vec2 tangent = vec2(-radial.y, radial.x);
 
-      vec2 baseSourceUv = coverUv(vUv);
+      float revealProgress = clamp(uNarrative.x, 0.0, 1.0);
+      float collapseProgress = clamp(uNarrative.y, 0.0, 1.0);
+      float fallProgress = clamp(uNarrative.z, 0.0, 1.0);
+      float narrativeScale = mix(1.0, 2.35, collapseProgress);
+      narrativeScale = mix(
+        narrativeScale,
+        0.045,
+        pow(fallProgress, 1.32)
+      );
+      vec2 narrativeUv = vec2(0.5) + (vUv - vec2(0.5)) * narrativeScale;
+      narrativeUv += tangent
+        * sin(radius * 13.0 - uTime * 0.42)
+        * fallProgress
+        * (1.0 - fallProgress)
+        * 0.008;
+      vec2 narrativeEdge = abs(narrativeUv - vec2(0.5)) * 2.0;
+      float collapseFrame = 1.0 - smoothstep(
+        0.96,
+        1.12,
+        max(narrativeEdge.x, narrativeEdge.y)
+      );
+      float narrativeMask = mix(1.0, collapseFrame, collapseProgress * (1.0 - fallProgress));
+
+      vec2 baseSourceUv = coverUv(narrativeUv);
       float planetNeighborhood = max(
         sphereMask(baseSourceUv, vec2(0.5927, 0.8278), 0.0510),
         max(
@@ -488,7 +512,7 @@
         deformation.x / max(0.001, screenAspect),
         deformation.y
       ) * 0.5;
-      vec2 sourceUv = coverUv(vUv - screenWarp);
+      vec2 sourceUv = coverUv(narrativeUv - screenWarp);
       sourceUv = clamp(sourceUv, vec2(0.001), vec2(0.999));
 
       vec4 source = texture2D(uTexture, sourceUv);
@@ -607,6 +631,24 @@
         * smoothstep(0.02, 0.32, sourceLight)
         * uMotion;
       color *= 1.0 - heldStill * 0.026;
+
+      // Opening light is recovered from the highlights down into the blacks.
+      // This keeps the pupil in darkness while the filament structure develops.
+      float revealThreshold = mix(0.46, -0.02, pow(revealProgress, 0.72));
+      float revealWidth = mix(0.040, 0.18, revealProgress);
+      float blackLevelGate = smoothstep(
+        revealThreshold,
+        revealThreshold + revealWidth,
+        luminance(color)
+      );
+      blackLevelGate = mix(
+        blackLevelGate,
+        1.0,
+        smoothstep(0.72, 1.0, revealProgress)
+      );
+      color *= smoothstep(0.0, 0.045, revealProgress) * blackLevelGate;
+      color *= narrativeMask;
+      color *= 1.0 - smoothstep(0.84, 1.0, fallProgress);
 
       gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
     }
@@ -773,6 +815,7 @@
         study: gl.getUniformLocation(program, 'uStudy'),
         approach: gl.getUniformLocation(program, 'uApproach'),
         pupilDilation: gl.getUniformLocation(program, 'uPupilDilation'),
+        narrative: gl.getUniformLocation(program, 'uNarrative'),
         flow: gl.getUniformLocation(program, 'uFlow'),
         lifeA: gl.getUniformLocation(program, 'uLifeA[0]'),
         lifeB: gl.getUniformLocation(program, 'uLifeB[0]'),
@@ -828,6 +871,12 @@
       gl.uniform1f(locations.study, state.study || 0);
       gl.uniform1f(locations.approach, state.approach || 0);
       gl.uniform1f(locations.pupilDilation, state.pupilDilation || 0);
+      gl.uniform3f(
+        locations.narrative,
+        state.reveal || 0,
+        state.collapse || 0,
+        state.fall || 0
+      );
       gl.uniform4f(
         locations.flow,
         state.flowVelocityX || 0,

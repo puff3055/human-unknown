@@ -1,6 +1,19 @@
 :root {
   color-scheme: dark;
   --paper: 222 223 225;
+  --intro-reveal: 0;
+  --cosmos-scale: 1;
+  --cosmos-brightness: .18;
+  --cosmos-contrast: 1.7;
+  --entry-shift-y: 0px;
+  --entry-scale: 1;
+  --guide-exit-opacity: 1;
+  --handoff-black: 0;
+  --contact-proximity: 0;
+  --contact-core: 0;
+  --contact-hold: 0;
+  --contact-pull: 0;
+  --contact-entry: 0;
 }
 
 * {
@@ -33,6 +46,22 @@ body {
   background: #000;
   overflow: hidden;
   user-select: none;
+  touch-action: none;
+}
+
+.contact:focus-visible {
+  outline: 1px solid rgba(var(--paper) / .16);
+  outline-offset: -1px;
+}
+
+.contact::after {
+  content: "";
+  position: absolute;
+  z-index: 11;
+  inset: 0;
+  background: #000;
+  opacity: var(--handoff-black);
+  pointer-events: none;
 }
 
 .cosmos {
@@ -40,12 +69,13 @@ body {
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  opacity: 0;
-  transition: opacity 1.15s cubic-bezier(.22, .61, .36, 1);
-}
-
-.contact.is-ready .cosmos {
-  opacity: 1;
+  opacity: var(--intro-reveal);
+  filter:
+    brightness(var(--cosmos-brightness))
+    contrast(var(--cosmos-contrast));
+  transform: scale(var(--cosmos-scale));
+  transform-origin: 50% 50%;
+  will-change: opacity, filter, transform;
 }
 
 .cosmos canvas {
@@ -82,15 +112,30 @@ body {
   left: 50%;
   top: 46.55%;
   width: min(80vw, 1040px);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(.985);
   text-align: center;
   opacity: 0;
-  transition: opacity 2.1s cubic-bezier(.22, .61, .36, 1);
+  filter: blur(9px) brightness(.62);
+  transition:
+    opacity 1.5s cubic-bezier(.22, .61, .36, 1),
+    filter 1.65s cubic-bezier(.22, .61, .36, 1),
+    transform 1.65s cubic-bezier(.22, .61, .36, 1);
   pointer-events: none;
 }
 
-.contact.is-ready .identity {
+.contact[data-intro="title-in"] .identity,
+.contact[data-intro="title-hold"] .identity {
   opacity: 1;
+  filter: blur(0) brightness(1);
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.contact[data-intro="dissolving"] .identity,
+.contact[data-intro="contact"] .identity {
+  opacity: 0;
+  filter: blur(12px) brightness(1.32);
+  transform: translate(-50%, -50%) scale(1.035);
+  transition-duration: 2.4s;
 }
 
 .sound-toggle {
@@ -123,7 +168,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.contact.is-ready .sound-toggle {
+.contact.is-ready:not([data-intro="blackout"]) .sound-toggle {
   opacity: .84;
   transform: translateY(0);
 }
@@ -145,7 +190,7 @@ body {
   outline-offset: 4px;
 }
 
-.contact.is-ready .sound-toggle:disabled {
+.contact.is-ready:not([data-intro="blackout"]) .sound-toggle:disabled {
   opacity: .28;
 }
 
@@ -205,9 +250,14 @@ body {
   left: 50%;
   bottom: 10.55vh;
   width: min(72vw, 640px);
-  transform: translateX(-50%);
+  opacity: var(--guide-exit-opacity);
+  transform:
+    translate(-50%, var(--entry-shift-y))
+    scale(var(--entry-scale));
+  transform-origin: 50% 50%;
   text-align: center;
   pointer-events: none;
+  will-change: opacity, transform;
 }
 
 .guide p {
@@ -293,6 +343,11 @@ noscript {
   letter-spacing: .12em;
 }
 
+.contact[data-phase="handoff"] .guide {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (max-width: 720px) {
   .identity {
     top: 47%;
@@ -353,5 +408,10 @@ noscript {
 
   .cosmos canvas {
     will-change: auto;
+  }
+
+  .cosmos {
+    transform: none;
+    will-change: opacity;
   }
 }

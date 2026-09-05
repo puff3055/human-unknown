@@ -10,12 +10,17 @@
   });
 
   const contact = document.getElementById('contact');
+  const cosmos = document.getElementById('cosmos');
   const nebulaCanvas = document.getElementById('nebulaCanvas');
   const nebulaFallback = document.getElementById('nebulaFallback');
   const guideText = document.getElementById('guideText');
   const contactCursor = document.getElementById('contactCursor');
   const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const encounterApi = window.HumanUnknownEncounter;
+  const encounter = encounterApi
+    ? new encounterApi.EncounterMachine({ reducedMotion: reduceMotion })
+    : null;
   const soundscape = window.LivingSoundscape && soundToggle
     ? new window.LivingSoundscape(soundToggle)
     : null;
@@ -43,6 +48,18 @@
     lastMovedAt: 0,
     lastEventAt: 0,
     stopWaveArmed: false,
+  };
+
+  const interaction = {
+    inputType: 'none',
+    intentTravel: 0,
+    intentSamples: 0,
+    intentional: false,
+    touchActive: false,
+    keyboardActive: false,
+    outer: false,
+    core: false,
+    coreAmount: 0,
   };
 
   const gaze = {
@@ -120,15 +137,27 @@
   };
 
   let nebula = null;
-  let phase = 'waiting';
+  let phase = 'opening';
   let lifeState = 'resting';
-  let awarenessScheduled = false;
   let firstContactAt = 0;
-  let noticedAt = 0;
-  let awarenessTimer = 0;
-  let holdTimer = 0;
-  let observeTimer = 0;
   let guideSwapTimer = 0;
+  let pendingGuide = '';
+  let reducedFrameTimer = 0;
+  let exitEventDispatched = false;
+  let encounterState = encounter ? encounter.getState() : {
+    phase: 'opening',
+    intro: 'blackout',
+    guide: '',
+    reveal: 0,
+    hold: 0,
+    entry: 0,
+    collapse: 0,
+    boundarySilence: 0,
+    fall: 0,
+    noticeSerial: 0,
+    handoff: false,
+    reducedMotion: reduceMotion,
+  };
   let lastFrame = performance.now();
   let telemetryFrame = 0;
   let frameWindowStartedAt = lastFrame;
@@ -163,7 +192,9 @@
   }
 
   function reveal() {
+    if (contact.classList.contains('is-ready')) return;
     contact.classList.add('is-ready');
+    if (encounter) encounter.start(performance.now());
   }
 
   function showStaticFallback() {
@@ -175,7 +206,6 @@
     contact.classList.add('no-webgl');
     nebulaCanvas.dataset.renderer = 'static-reduced-motion';
     nebulaCanvas.dataset.texture = 'continuous-static';
-    initializeMetabolism(performance.now());
 
     if (nebulaFallback.complete) {
       requestAnimationFrame(reveal);
@@ -192,6 +222,13 @@
   }
 
   async function bootNebula() {
+    if (!encounter) {
+      console.warn('Encounter state machine is unavailable; static fallback enabled.');
+      showStaticFallback();
+      reveal();
+      return;
+    }
+
     if (reduceMotion) {
       showReducedMotionFallback();
       return;
@@ -212,6 +249,9 @@
       nebula.render(0, {
         pointerX: 0,
         pointerY: 0,
+        reveal: 0,
+        collapse: 0,
+        fall: 0,
         lifeA: metabolism.lifeA,
         lifeB: metabolism.lifeB,
         waveA: waves.waveA,
@@ -236,20 +276,154 @@
   }
 
   function setGuide(copy) {
+    if (guideText.textContent === copy || pendingGuide === copy) return;
     window.clearTimeout(guideSwapTimer);
 
     if (!guideText.textContent) {
       guideText.textContent = copy;
+      pendingGuide = '';
       requestAnimationFrame(() => guideText.classList.add('is-visible'));
       return;
     }
 
-    if (guideText.textContent === copy) return;
+    pendingGuide = copy;
     guideText.classList.remove('is-visible');
     guideSwapTimer = window.setTimeout(() => {
       guideText.textContent = copy;
       guideText.classList.add('is-visible');
+      pendingGuide = '';
     }, 480);
+  }
+
+  function isSoundTarget(target) {
+    return Boolean(
+      target
+      && target.closest
+      && target.closest('#soundToggle')
+    );
+  }
+
+  function isTrackingPhase(value = phase) {
+    return value === 'contact'
+      || value === 'near'
+      || value === 'noticed'
+      || value === 'aligned';
+  }
+
+  function markIntentionalInput(now, inputType) {
+    if (interaction.intentional || !encounter) return;
+    interaction.intentional = true;
+    interaction.inputType = inputType;
+    firstContactAt = now;
+    contact.dataset.input = inputType;
+    encounter.markIntent(now);
+  }
+
+  function getContactIsActive() {
+    return encounterApi.resolveContactActive({
+      inputType: interaction.inputType,
+      touchActive: interaction.touchActive,
+      keyboardActive: interaction.keyboardActive,
+      hasMoved: pointer.hasMoved,
+      pointerInside: pointer.inside,
+    });
+  }
+
+  function applyEncounterState(nextState, now) {
+    const previousPhase = phase;
+    encounterState = nextState;
+    phase = nextState.phase;
+
+    contact.dataset.intro = nextState.intro;
+    contact.dataset.phase = phase;
+    contact.dataset.hold = nextState.hold.toFixed(3);
+    contact.dataset.entry = nextState.entry.toFixed(3);
+    contact.dataset.hotzone = interaction.core
+      ? 'core'
+      : interaction.outer
+        ? 'outer'
+        : 'none';
+    contact.dataset.exitReady = String(nextState.handoff);
+    contact.setAttribute('aria-busy', String(phase === 'entering'));
+
+    const reveal = clamp(nextState.reveal, 0, 1);
+    const entry = clamp(nextState.entry, 0, 1);
+    const collapse = reduceMotion ? 0 : clamp(nextState.collapse, 0, 1);
+    const fall = reduceMotion ? 0 : clamp(nextState.fall, 0, 1);
+    const cosmosScale = reduceMotion
+      ? 1
+      : 1 - collapse * 0.17 + fall * 1.65;
+    const guideExit = 1 - smoothstep(0.02, 0.28, entry);
+    const entryShift = -smoothstep(0, 0.30, entry)
+      * Math.min(window.innerHeight * 0.38, 420);
+    const finalBlack = smoothstep(0.76, 1, entry);
+    const handoffBlack = Math.max(nextState.boundarySilence, finalBlack, nextState.handoff ? 1 : 0);
+    const pull = phase === 'entering' || phase === 'handoff'
+      ? 1
+      : phase === 'aligned'
+        ? interaction.coreAmount * (0.34 + nextState.hold * 0.66)
+        : interaction.coreAmount * 0.16;
+
+    contact.style.setProperty('--intro-reveal', reveal.toFixed(4));
+    contact.style.setProperty('--cosmos-brightness', (0.18 + reveal * 0.82).toFixed(3));
+    contact.style.setProperty('--cosmos-contrast', (1.72 - reveal * 0.72).toFixed(3));
+    contact.style.setProperty('--cosmos-scale', cosmosScale.toFixed(4));
+    contact.style.setProperty('--entry-shift-y', `${entryShift.toFixed(1)}px`);
+    contact.style.setProperty('--entry-scale', (1 - smoothstep(0, 0.34, entry) * 0.38).toFixed(4));
+    contact.style.setProperty('--guide-exit-opacity', guideExit.toFixed(4));
+    contact.style.setProperty('--handoff-black', handoffBlack.toFixed(4));
+    contact.style.setProperty('--contact-proximity', presence.proximity.toFixed(4));
+    contact.style.setProperty('--contact-core', interaction.coreAmount.toFixed(4));
+    contact.style.setProperty('--contact-hold', nextState.hold.toFixed(4));
+    contact.style.setProperty('--contact-pull', pull.toFixed(4));
+    contact.style.setProperty('--contact-entry', entry.toFixed(4));
+    contact.style.setProperty('--pupil-x', `${gaze.x.toFixed(2)}px`);
+    contact.style.setProperty('--pupil-y', `${gaze.y.toFixed(2)}px`);
+
+    if (nextState.guide && guideText.textContent !== nextState.guide) {
+      setGuide(nextState.guide);
+    }
+
+    presence.targetAwareness = isTrackingPhase(phase) || phase === 'entering' ? 1 : 0;
+    presence.targetHold = nextState.hold;
+
+    if (previousPhase !== phase) {
+      if (phase === 'contact') {
+        setLifeState('sensing');
+      } else if (phase === 'near') {
+        setLifeState('observing');
+      } else if (phase === 'noticed') {
+        setLifeState('orienting');
+        addCuriosityImpulse(1.12, 'mutual-notice', now);
+        startPupilReaction(now, 1);
+      } else if (phase === 'aligned') {
+        setLifeState('approaching');
+      } else if (phase === 'entering') {
+        setLifeState('entering');
+      } else if (phase === 'handoff') {
+        setLifeState('handoff');
+      }
+
+      contact.dispatchEvent(new CustomEvent('humanunknown:phasechange', {
+        detail: {
+          phase,
+          intro: nextState.intro,
+          noticeSerial: nextState.noticeSerial,
+        },
+      }));
+    }
+
+    if (nextState.handoff && !exitEventDispatched) {
+      exitEventDispatched = true;
+      window.dispatchEvent(new CustomEvent('humanunknown:homepage-exit', {
+        detail: {
+          source: 'homepage-v4',
+          phase: 'handoff',
+          reducedMotion: reduceMotion,
+          completedAt: now,
+        },
+      }));
+    }
   }
 
   function addCuriosityImpulse(amount, kind, now) {
@@ -271,46 +445,6 @@
     );
     curiosity.lastImpulseAt = now;
     curiosity.lastImpulseKind = kind;
-  }
-
-  function becomeAware() {
-    if (phase !== 'waiting') return;
-    phase = 'noticed';
-    noticedAt = performance.now();
-    presence.targetAwareness = 1;
-    contact.dataset.phase = phase;
-    setLifeState('orienting');
-    addCuriosityImpulse(0.98, 'first-contact', noticedAt);
-    setGuide('它注意到你了。');
-
-    observeTimer = window.setTimeout(() => {
-      if (lifeState === 'orienting') setLifeState('observing');
-    }, reduceMotion ? 50 : 1180);
-  }
-
-  function scheduleAwareness(now) {
-    if (awarenessScheduled || pointer.travel < 56) return;
-    awarenessScheduled = true;
-    firstContactAt = now;
-    presence.targetHold = 1;
-    setLifeState('sensing');
-
-    holdTimer = window.setTimeout(() => {
-      presence.targetHold = 0;
-    }, reduceMotion ? 40 : 240);
-
-    awarenessTimer = window.setTimeout(
-      becomeAware,
-      reduceMotion ? 80 : 260
-    );
-  }
-
-  function askCloser() {
-    if (phase !== 'noticed') return;
-    phase = 'closer';
-    contact.dataset.phase = phase;
-    setLifeState('approaching');
-    setGuide('再靠近一点。');
   }
 
   function pickLifeZone(now, excludedIndexes = []) {
@@ -551,7 +685,13 @@
     });
   }
 
-  function updatePointer(clientX, clientY, pointerType = 'mouse', now = performance.now()) {
+  function updatePointer(
+    clientX,
+    clientY,
+    pointerType = 'mouse',
+    now = performance.now(),
+    options = {}
+  ) {
     const hadMoved = pointer.hasMoved;
     const deltaX = clientX - pointer.previousX;
     const deltaY = clientY - pointer.previousY;
@@ -591,10 +731,22 @@
     pointer.previousX = clientX;
     pointer.previousY = clientY;
     pointer.lastEventAt = now;
-    pointer.hasMoved = true;
+    const moved = distance > 1.5;
+    pointer.hasMoved = pointer.hasMoved || moved || Boolean(options.explicit);
     pointer.inside = true;
+    interaction.inputType = pointerType;
+    contact.dataset.input = pointerType;
 
-    if (distance > 1.5) {
+    if (options.countIntent !== false && moved) {
+      interaction.intentSamples += 1;
+      interaction.intentTravel += Math.min(distance, 96);
+      if (interaction.intentSamples >= 2 && interaction.intentTravel >= 28) {
+        markIntentionalInput(now, pointerType);
+      }
+    }
+    if (options.explicit) markIntentionalInput(now, pointerType);
+
+    if (moved) {
       advectExistingWaves(deltaX, deltaY, clientX, clientY);
       advectLifeEvents(deltaX, deltaY, clientX, clientY, now);
       pointer.lastMovedAt = now;
@@ -646,11 +798,9 @@
       }
 
       presence.studyStartedAt = 0;
-      if (phase === 'noticed') setLifeState('observing');
-      if (phase === 'closer') setLifeState('approaching');
+      if (phase === 'near' || phase === 'noticed') setLifeState('observing');
+      if (phase === 'aligned') setLifeState('approaching');
     }
-
-    scheduleAwareness(now);
 
     if (pointerType !== 'touch') {
       contact.classList.add('has-pointer');
@@ -659,13 +809,70 @@
   }
 
   window.addEventListener('pointermove', (event) => {
-    updatePointer(event.clientX, event.clientY, event.pointerType, performance.now());
+    updatePointer(
+      event.clientX,
+      event.clientY,
+      event.pointerType,
+      performance.now(),
+      { countIntent: !isSoundTarget(event.target) }
+    );
   }, { passive: true });
 
   window.addEventListener('pointerdown', (event) => {
-    if (event.target.closest && event.target.closest('#soundToggle')) return;
-    updatePointer(event.clientX, event.clientY, event.pointerType, performance.now());
+    if (isSoundTarget(event.target)) return;
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+      interaction.touchActive = true;
+    }
+    updatePointer(
+      event.clientX,
+      event.clientY,
+      event.pointerType,
+      performance.now(),
+      { explicit: event.pointerType === 'touch' || event.pointerType === 'pen' }
+    );
   }, { passive: true });
+
+  window.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+      interaction.touchActive = false;
+    }
+  }, { passive: true });
+
+  window.addEventListener('pointercancel', (event) => {
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+      interaction.touchActive = false;
+      pointer.inside = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('keydown', (event) => {
+    if (
+      event.altKey
+      || event.ctrlKey
+      || event.metaKey
+      || isSoundTarget(event.target)
+      || (event.key !== 'Enter' && event.key !== ' ')
+    ) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    interaction.keyboardActive = true;
+    pointer.x = window.innerWidth / 2 + gaze.x;
+    pointer.y = window.innerHeight / 2 + gaze.y;
+    pointer.previousX = pointer.x;
+    pointer.previousY = pointer.y;
+    pointer.hasMoved = true;
+    pointer.inside = true;
+    pointer.lastMovedAt = performance.now();
+    interaction.inputType = 'keyboard';
+    contact.dataset.input = 'keyboard';
+    markIntentionalInput(pointer.lastMovedAt, 'keyboard');
+  });
+
+  document.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      interaction.keyboardActive = false;
+    }
+  });
 
   document.documentElement.addEventListener('mouseleave', () => {
     pointer.inside = false;
@@ -683,6 +890,8 @@
   window.addEventListener('blur', () => {
     pointer.inside = false;
     presence.targetStudy = 0;
+    interaction.touchActive = false;
+    interaction.keyboardActive = false;
     contact.classList.remove('has-pointer');
   });
 
@@ -753,7 +962,7 @@
     const idleFor = pointer.lastMovedAt ? now - pointer.lastMovedAt : Infinity;
     const canStudy = pointer.hasMoved
       && pointer.inside
-      && phase !== 'waiting'
+      && isTrackingPhase()
       && idleFor > 72;
 
     presence.targetStudy = canStudy && !reduceMotion
@@ -779,7 +988,7 @@
     const viewportCenterY = window.innerHeight / 2;
     const canTrack = pointer.hasMoved
       && pointer.inside
-      && phase !== 'waiting'
+      && isTrackingPhase()
       && !reduceMotion;
 
     const directionX = canTrack
@@ -816,35 +1025,38 @@
     const pupilY = viewportCenterY + gaze.y;
     const distance = Math.hypot(pointer.x - pupilX, pointer.y - pupilY);
     const shortSide = Math.min(window.innerWidth, window.innerHeight);
-    const proximity = pointer.hasMoved && pointer.inside
+    const hasRealInput = pointer.hasMoved && pointer.inside && interaction.intentional;
+    const proximity = hasRealInput
       ? 1 - smoothstep(shortSide * 0.065, shortSide * 0.36, distance)
+      : 0;
+    const coreAmount = hasRealInput
+      ? 1 - smoothstep(shortSide * 0.085, shortSide * 0.145, distance)
       : 0;
 
     presence.previousProximity = presence.proximity;
     presence.proximity = proximity;
+    interaction.outer = hasRealInput && distance <= shortSide * 0.30;
+    interaction.core = hasRealInput && distance <= shortSide * 0.125;
+    interaction.coreAmount = coreAmount;
 
     if (
       proximity > 0.58
       && presence.previousProximity <= 0.58
-      && phase !== 'waiting'
+      && isTrackingPhase()
     ) {
       addCuriosityImpulse(0.76, 'approach', now);
       if (pupil.active) pupil.amplitude = Math.max(pupil.amplitude, 0.96);
     }
 
-    if (
-      phase === 'noticed'
-      && now - noticedAt > 1050
-      && distance < shortSide * 0.285
-    ) {
-      askCloser();
-    }
-
-    presence.targetApproach = phase === 'closer' && !reduceMotion ? proximity : 0;
+    const approaching = phase === 'near'
+      || phase === 'noticed'
+      || phase === 'aligned'
+      || phase === 'entering';
+    presence.targetApproach = approaching && !reduceMotion ? proximity : 0;
     presence.approach = damp(presence.approach, presence.targetApproach, 3.9, deltaSeconds);
   }
 
-  function startPupilReaction(now) {
+  function startPupilReaction(now, forcedAmplitude = 0) {
     const approachWeight = presence.proximity > 0.58 ? 1 : 0;
     const strength = clamp(curiosity.energy, 0.58, 1.35);
     pupil.active = true;
@@ -853,7 +1065,7 @@
     pupil.holdDuration = randomBetween(420, 980) * (0.82 + strength * 0.24);
     pupil.fallDuration = randomBetween(1900, 3300);
     pupil.amplitude = clamp(
-      0.48 + strength * 0.25 + approachWeight * 0.18,
+      Math.max(forcedAmplitude, 0.48 + strength * 0.25 + approachWeight * 0.18),
       0.58,
       1
     );
@@ -876,14 +1088,6 @@
     );
 
     if (!pupil.active && curiosity.energy < 0.24) curiosity.armed = true;
-    if (
-      phase !== 'waiting'
-      && curiosity.armed
-      && curiosity.energy > 0.62
-      && !pupil.active
-    ) {
-      startPupilReaction(now);
-    }
 
     if (reduceMotion || !pupil.active) {
       pupil.value = 0;
@@ -926,6 +1130,15 @@
   }
 
   function updateMetabolism(now) {
+    if (reduceMotion) {
+      metabolism.lifeA.fill(0);
+      metabolism.lifeB.fill(0);
+      metabolism.activeCount = 0;
+      metabolism.growthCount = 0;
+      metabolism.decayCount = 0;
+      metabolism.transferCount = 0;
+      return;
+    }
     if (!metabolism.startedAt) initializeMetabolism(now);
 
     metabolism.lifeA.fill(0);
@@ -1014,6 +1227,10 @@
   function updateWaves(now) {
     waves.waveA.fill(0);
     waves.waveB.fill(0);
+    if (reduceMotion) {
+      waves.items.length = 0;
+      return;
+    }
     waves.items = waves.items.filter((wave) => (
       (now - wave.startedAt) / wave.duration < 1.035
     ));
@@ -1045,6 +1262,7 @@
     if (telemetryFrame % 8 !== 0) return;
 
     nebulaCanvas.dataset.phase = phase;
+    nebulaCanvas.dataset.intro = encounterState.intro;
     nebulaCanvas.dataset.life = lifeState;
     nebulaCanvas.dataset.rhythm = 'metabolic';
     nebulaCanvas.dataset.rhythmProgress = '0.000';
@@ -1063,6 +1281,11 @@
     nebulaCanvas.dataset.adaptation = curiosity.adaptation.toFixed(3);
     nebulaCanvas.dataset.pupil = pupil.value.toFixed(3);
     nebulaCanvas.dataset.approach = presence.approach.toFixed(3);
+    nebulaCanvas.dataset.hotzone = contact.dataset.hotzone;
+    nebulaCanvas.dataset.contactHold = encounterState.hold.toFixed(3);
+    nebulaCanvas.dataset.entry = encounterState.entry.toFixed(3);
+    nebulaCanvas.dataset.collapse = encounterState.collapse.toFixed(3);
+    nebulaCanvas.dataset.fall = encounterState.fall.toFixed(3);
     nebulaCanvas.dataset.metabolism = String(metabolism.activeCount);
     nebulaCanvas.dataset.growth = String(metabolism.growthCount);
     nebulaCanvas.dataset.decay = String(metabolism.decayCount);
@@ -1092,6 +1315,13 @@
     updateStudy(deltaSeconds, now);
     updateGaze(deltaSeconds);
     updateApproach(deltaSeconds, now);
+    if (encounter) {
+      applyEncounterState(encounter.update(now, {
+        outer: interaction.outer,
+        core: interaction.core,
+        active: getContactIsActive(),
+      }), now);
+    }
     updateCuriosity(deltaSeconds, now);
     updateMetabolism(now);
     updateWaves(now);
@@ -1107,6 +1337,7 @@
         curiosity,
         metabolism,
         waves: waves.items,
+        encounter: encounterState,
       }, deltaSeconds);
     }
 
@@ -1124,6 +1355,9 @@
         study: presence.study,
         approach: presence.approach,
         pupilDilation: pupil.value,
+        reveal: encounterState.reveal,
+        collapse: encounterState.collapse,
+        fall: encounterState.fall,
         lifeA: metabolism.lifeA,
         lifeB: metabolism.lifeB,
         waveA: waves.waveA,
@@ -1141,12 +1375,18 @@
       frameWindowStartedAt = now;
     }
 
-    requestAnimationFrame(animate);
+    if (reduceMotion) {
+      reducedFrameTimer = window.setTimeout(() => requestAnimationFrame(animate), 90);
+    } else {
+      requestAnimationFrame(animate);
+    }
   }
 
   window.__humanUnknown = {
     getState: () => ({
       phase,
+      intro: encounterState.intro,
+      guide: encounterState.guide,
       lifeState,
       renderer: nebula && nebula.ready ? 'living-nebula' : 'fallback',
       textureMode: 'continuous',
@@ -1199,9 +1439,51 @@
       hold: presence.hold,
       study: presence.study,
       approach: presence.approach,
+      encounter: {
+        titleFullyVisibleAt: encounterState.titleFullyVisibleAt,
+        titleReadableFor: encounterState.titleReadableFor,
+        titleMinReadMs: encounterState.titleMinReadMs,
+        intentionalAt: encounterState.intentionalAt,
+        guideReadableFor: encounterState.guideReadableFor,
+        noticeSerial: encounterState.noticeSerial,
+        outerDwell: encounterState.outerDwell,
+        coreDwell: encounterState.coreDwell,
+        hold: encounterState.hold,
+        holdMs: encounterState.holdMs,
+        entry: encounterState.entry,
+        entryDurationMs: encounterState.entryDurationMs,
+        collapse: encounterState.collapse,
+        boundarySilence: encounterState.boundarySilence,
+        fall: encounterState.fall,
+        handoff: encounterState.handoff,
+        reducedMotion: encounterState.reducedMotion,
+      },
+      input: {
+        type: interaction.inputType,
+        intentional: interaction.intentional,
+        touchActive: interaction.touchActive,
+        keyboardActive: interaction.keyboardActive,
+        hotzone: interaction.core ? 'core' : interaction.outer ? 'outer' : 'none',
+        coreAmount: interaction.coreAmount,
+      },
       pointerTravel: pointer.travel,
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
+      contract: {
+        version: 4,
+        phaseAttribute: 'data-phase',
+        introAttribute: 'data-intro',
+        exitEvent: 'humanunknown:homepage-exit',
+        cssVariables: [
+          '--contact-proximity',
+          '--contact-core',
+          '--contact-hold',
+          '--contact-pull',
+          '--contact-entry',
+          '--pupil-x',
+          '--pupil-y',
+        ],
+      },
     }),
   };
 
@@ -1210,10 +1492,8 @@
   requestAnimationFrame(animate);
 
   window.addEventListener('pagehide', () => {
-    window.clearTimeout(awarenessTimer);
-    window.clearTimeout(holdTimer);
-    window.clearTimeout(observeTimer);
     window.clearTimeout(guideSwapTimer);
+    window.clearTimeout(reducedFrameTimer);
     if (soundscape) soundscape.destroy();
     if (nebula) nebula.destroy();
   });

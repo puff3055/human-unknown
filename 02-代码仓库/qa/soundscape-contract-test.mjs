@@ -197,6 +197,7 @@ assert.equal(soundscape.getState().contextState, 'running');
 
 const now = performance.now();
 const state = {
+  phase: 'aligned',
   pointer: {
     x: 1280,
     y: 330,
@@ -206,6 +207,14 @@ const state = {
   },
   presence: { study: 0.55, approach: 0.72 },
   pupil: { active: true, amplitude: 0.92, value: 0.71 },
+  encounter: {
+    phase: 'aligned',
+    noticeSerial: 1,
+    outerDwell: 420,
+    hold: 0.55,
+    entry: 0,
+    boundarySilence: 0,
+  },
   metabolism: {
     events: [
       { x: -0.4, kind: 1, energy: 0.96, seed: 0.4, directionX: 0.7, startedAt: now - 2100, duration: 5600 },
@@ -224,12 +233,12 @@ for (let index = 0; index < 8; index += 1) {
 }
 const activeState = soundscape.getState();
 assert.ok(activeState.telemetry.level > 0);
-assert.ok(activeState.telemetry.contact > 0);
-assert.ok(activeState.telemetry.stillness > 0);
-assert.ok(activeState.telemetry.approach > 0.7);
-assert.ok(activeState.telemetry.growth > 0);
-assert.ok(activeState.telemetry.decay > 0);
-assert.ok(activeState.telemetry.transfer > 0);
+assert.equal(activeState.architecture, 'sparse-oscillator-events');
+assert.ok(activeState.telemetry.movement > 0);
+assert.ok(activeState.telemetry.focus > 0.6);
+assert.ok(activeState.telemetry.events > 0, 'notice is emitted as a bounded event');
+assert.ok(soundscape.nodes.movementFilter.frequency.value < 260);
+assert.ok(soundscape.nodes.focusFilter.frequency.value < 680);
 assert.ok(Number(toggle.dataset.soundLevel) > 0);
 
 await documentListeners.get('keydown')({
@@ -246,13 +255,18 @@ assert.equal(storage.get('human-unknown:sound-enabled'), 'off');
 
 const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(html, /id="soundToggle"/);
-assert.match(html, /living-soundscape\.js\?v=3\.4\.0-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=4\.0\.0-rc\.1/);
 assert.match(html, /assets\/tabler-volume-off\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
 assert.match(appSource, /soundscape\.update\(\{/);
 assert.match(appSource, /closest\('#soundToggle'\)/);
 assert.match(appSource, /soundscape \? soundscape\.getState\(\) : null/);
+
+assert.doesNotMatch(source, /createNoiseBuffer|createBufferSource|airNoise|worldNoise/);
+assert.doesNotMatch(source, /2240|3900|DynamicsCompressor|metabolismBus/);
+assert.match(source, /randomBetween\(36\.5, 52\.5\)/);
+assert.match(source, /base \* ratio/);
 
 await soundscape.setEnabled(true);
 soundscape.destroy();
