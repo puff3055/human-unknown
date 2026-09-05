@@ -14,11 +14,16 @@
   const nebulaCanvas = document.getElementById('nebulaCanvas');
   const nebulaFallback = document.getElementById('nebulaFallback');
   const guideText = document.getElementById('guideText');
+  const gazeCountdown = document.getElementById('gazeCountdown');
+  const countdownNumber = document.getElementById('countdownNumber');
   const contactCursor = document.getElementById('contactCursor');
   const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const guideSwapDelay = reduceMotion ? 60 : 650;
   const encounterApi = window.HumanUnknownEncounter;
+  const encounterTiming = encounterApi
+    ? (reduceMotion ? encounterApi.REDUCED_TIMING : encounterApi.STANDARD_TIMING)
+    : { guideSwapMs: reduceMotion ? 80 : 400 };
+  const guideSwapDelay = encounterTiming.guideSwapMs;
   const encounter = encounterApi
     ? new encounterApi.EncounterMachine({ reducedMotion: reduceMotion })
     : null;
@@ -152,6 +157,12 @@
     intro: 'blackout',
     guide: '',
     reveal: 0,
+    guideExit: 0,
+    finalGuideReadComplete: false,
+    finalGuideComplete: false,
+    countdownReady: false,
+    countdownState: 'waiting',
+    countdownValue: null,
     hold: 0,
     entry: 0,
     zoom: 0,
@@ -347,6 +358,10 @@
     contact.dataset.phase = phase;
     contact.dataset.hold = nextState.hold.toFixed(3);
     contact.dataset.entry = nextState.entry.toFixed(3);
+    contact.dataset.countdown = nextState.countdownState;
+    contact.dataset.countdownValue = nextState.countdownValue === null
+      ? ''
+      : String(nextState.countdownValue);
     contact.dataset.hotzone = interaction.core
       ? 'core'
       : interaction.outer
@@ -361,7 +376,7 @@
     const cosmosScale = reduceMotion
       ? 1
       : 1 + nextState.hold * 0.05 + zoom * 3.55;
-    const guideExit = 1 - smoothstep(0.20, 0.45, entry);
+    const guideExit = 1 - clamp(nextState.guideExit || 0, 0, 1);
     const finalBlack = smoothstep(0.86, 1, zoom);
     const handoffBlack = Math.max(finalBlack, nextState.handoff ? 1 : 0);
     const pull = phase === 'entering' || phase === 'handoff'
@@ -374,7 +389,8 @@
         0.36
           + presence.proximity * 0.36
           + interaction.coreAmount * 0.17
-          + nextState.hold * 0.11,
+          + nextState.hold * 0.11
+          + (nextState.countdownReady ? 0.16 : 0),
         0,
         1
       )
@@ -400,6 +416,7 @@
     contact.style.setProperty('--contact-proximity', presence.proximity.toFixed(4));
     contact.style.setProperty('--contact-core', interaction.coreAmount.toFixed(4));
     contact.style.setProperty('--contact-hold', nextState.hold.toFixed(4));
+    contact.style.setProperty('--contact-countdown', nextState.hold.toFixed(4));
     contact.style.setProperty('--contact-pull', pull.toFixed(4));
     contact.style.setProperty('--contact-entry', entry.toFixed(4));
     contact.style.setProperty('--hotzone-cue', hotzoneCue.toFixed(4));
@@ -409,6 +426,18 @@
 
     if (nextState.guide && guideText.textContent !== nextState.guide) {
       setGuide(nextState.guide);
+    }
+
+    if (countdownNumber && gazeCountdown) {
+      const showCountdown = (
+        nextState.countdownState === 'active'
+        || nextState.countdownState === 'releasing'
+      ) && nextState.countdownValue !== null;
+      const countdownCopy = showCountdown ? String(nextState.countdownValue) : '';
+      if (countdownNumber.textContent !== countdownCopy) {
+        countdownNumber.textContent = countdownCopy;
+      }
+      gazeCountdown.setAttribute('aria-hidden', String(!showCountdown));
     }
 
     presence.targetAwareness = isTrackingPhase(phase) || phase === 'entering' ? 1 : 0;
@@ -1387,6 +1416,12 @@
             pupil.value
               + interaction.coreAmount * 0.12
               + encounterState.hold * 0.18,
+            (
+              encounterState.countdownState === 'active'
+              || encounterState.countdownState === 'releasing'
+            )
+              ? 0.38 + encounterState.hold * 0.38
+              : 0,
             phase === 'entering' || phase === 'handoff'
               ? 0.30 + (encounterState.zoom || 0) * 0.70
               : 0
@@ -1484,6 +1519,11 @@
         titleMinReadMs: encounterState.titleMinReadMs,
         intentionalAt: encounterState.intentionalAt,
         guideReadableFor: encounterState.guideReadableFor,
+        finalGuideReadComplete: encounterState.finalGuideReadComplete,
+        finalGuideComplete: encounterState.finalGuideComplete,
+        countdownReady: encounterState.countdownReady,
+        countdownState: encounterState.countdownState,
+        countdownValue: encounterState.countdownValue,
         noticeSerial: encounterState.noticeSerial,
         outerDwell: encounterState.outerDwell,
         coreDwell: encounterState.coreDwell,
@@ -1510,14 +1550,17 @@
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
       contract: {
-        version: '4.1',
+        version: '4.2',
         phaseAttribute: 'data-phase',
         introAttribute: 'data-intro',
+        countdownAttribute: 'data-countdown',
+        countdownValueAttribute: 'data-countdown-value',
         exitEvent: 'humanunknown:homepage-exit',
         cssVariables: [
           '--contact-proximity',
           '--contact-core',
           '--contact-hold',
+          '--contact-countdown',
           '--contact-pull',
           '--contact-entry',
           '--hotzone-cue',

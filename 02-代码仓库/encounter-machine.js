@@ -3,16 +3,15 @@
 
   const COPY_SEQUENCE = Object.freeze([
     '在这里',
-    '对，在这里',
     '它注意到你了',
     '放入你的眼睛',
   ]);
 
   const PHASE_COPY = Object.freeze({
     contact: COPY_SEQUENCE[0],
-    near: COPY_SEQUENCE[1],
-    noticed: COPY_SEQUENCE[2],
-    aligned: COPY_SEQUENCE[3],
+    near: COPY_SEQUENCE[0],
+    noticed: COPY_SEQUENCE[1],
+    aligned: COPY_SEQUENCE[2],
   });
 
   const STANDARD_TIMING = Object.freeze({
@@ -21,16 +20,17 @@
     titleInMs: 1500,
     titleMinReadMs: 4000,
     titleDissolveMs: 2400,
-    guideSwapMs: 650,
-    guideEnterMs: 800,
-    contactReadMs: 3200,
-    nearReadMs: 3200,
-    noticedReadMs: 3600,
-    alignedReadMs: 3200,
-    noticeDwellMs: 420,
-    coreDwellMs: 520,
-    holdMs: 1400,
-    holdReleaseMs: 950,
+    guideSwapMs: 400,
+    guideEnterMs: 500,
+    contactReadMs: 1600,
+    nearReadMs: 1600,
+    noticedReadMs: 2000,
+    alignedReadMs: 1800,
+    alignedExitMs: 550,
+    noticeDwellMs: 380,
+    coreDwellMs: 420,
+    holdMs: 3000,
+    holdReleaseMs: 900,
     entryMs: 4200,
     entryPauseMs: 420,
     boundaryStartMs: 3800,
@@ -43,8 +43,9 @@
     revealMs: 320,
     titleInMs: 120,
     titleDissolveMs: 80,
-    guideSwapMs: 60,
-    guideEnterMs: 40,
+    guideSwapMs: 80,
+    guideEnterMs: 80,
+    alignedExitMs: 80,
     noticeDwellMs: 160,
     coreDwellMs: 180,
     entryMs: 800,
@@ -97,6 +98,7 @@
       this.boundarySilence = 0;
       this.fall = 0;
       this.noticeSerial = 0;
+      this.lastContactActive = false;
       this.handoff = false;
     }
 
@@ -114,13 +116,17 @@
 
     transition(nextPhase, now) {
       if (this.phase === nextPhase) return false;
+      const nextGuide = PHASE_COPY[nextPhase] || this.guide;
+      const guideChanged = nextGuide !== this.guide;
       const hadGuide = Boolean(this.guide);
       this.phase = nextPhase;
       this.phaseSince = now;
-      this.guide = PHASE_COPY[nextPhase] || this.guide;
-      this.guideReadableAt = now
-        + (hadGuide ? this.timing.guideSwapMs : 0)
-        + this.timing.guideEnterMs;
+      this.guide = nextGuide;
+      if (guideChanged) {
+        this.guideReadableAt = now
+          + (hadGuide ? this.timing.guideSwapMs : 0)
+          + this.timing.guideEnterMs;
+      }
 
       if (nextPhase === 'noticed') this.noticeSerial += 1;
       if (nextPhase === 'entering') {
@@ -223,14 +229,17 @@
       }
 
       if (this.phase === 'aligned') {
-        const holdDelta = core && active
+        const countdownReadyAt = this.guideReadableAt
+          + this.timing.alignedReadMs
+          + this.timing.alignedExitMs;
+        const countdownReady = now >= countdownReadyAt;
+        const holdDelta = countdownReady && core && active
           ? deltaMs / this.timing.holdMs
           : -deltaMs / this.timing.holdReleaseMs;
         this.hold = clamp(this.hold + holdDelta, 0, 1);
-        if (
-          this.hold >= 1
-          && readableFor >= this.timing.alignedReadMs
-        ) this.transition('entering', now);
+        if (countdownReady && core && active && this.hold >= 1) {
+          this.transition('entering', now);
+        }
       }
     }
 
@@ -269,6 +278,7 @@
       if (this.startedAt === null) return this.getState(now);
       const deltaMs = clamp(now - this.lastUpdatedAt, 0, 80);
       this.lastUpdatedAt = now;
+      this.lastContactActive = Boolean(input.active && input.core);
       if (input.intentional) this.markIntent(now);
 
       this.updateIntro(now);
@@ -284,6 +294,35 @@
       const guideReadableFor = this.guideReadableAt === null
         ? 0
         : Math.max(0, now - this.guideReadableAt);
+      const isFinalSequence = this.phase === 'aligned'
+        || this.phase === 'entering'
+        || this.phase === 'handoff';
+      const finalGuideReadComplete = isFinalSequence
+        && guideReadableFor >= this.timing.alignedReadMs;
+      const guideExit = this.phase === 'aligned'
+        ? smoothstep(
+          this.timing.alignedReadMs,
+          this.timing.alignedReadMs + this.timing.alignedExitMs,
+          guideReadableFor
+        )
+        : isFinalSequence ? 1 : 0;
+      const finalGuideComplete = isFinalSequence && guideExit >= 1;
+      const countdownReady = this.phase === 'aligned'
+        && guideReadableFor >= this.timing.alignedReadMs + this.timing.alignedExitMs;
+      const countdownValue = this.phase === 'entering' || this.phase === 'handoff'
+        ? 0
+        : this.hold > 0
+          ? Math.max(1, 3 - Math.floor(this.hold * 3))
+          : null;
+      const countdownState = this.phase === 'entering' || this.phase === 'handoff'
+        ? 'complete'
+        : !countdownReady
+          ? 'waiting'
+          : this.hold <= 0
+            ? 'ready'
+            : this.lastContactActive
+              ? 'active'
+              : 'releasing';
 
       return {
         phase: this.phase,
@@ -298,6 +337,12 @@
         intentionalAt: this.intentionalAt,
         guideReadableAt: this.guideReadableAt,
         guideReadableFor,
+        finalGuideReadComplete,
+        guideExit,
+        finalGuideComplete,
+        countdownReady,
+        countdownState,
+        countdownValue,
         outerDwell: this.outerDwell,
         coreDwell: this.coreDwell,
         hold: this.hold,

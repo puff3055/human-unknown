@@ -12,6 +12,7 @@
   --contact-proximity: 0;
   --contact-core: 0;
   --contact-hold: 0;
+  --contact-countdown: 0;
   --contact-pull: 0;
   --contact-entry: 0;
   --hotzone-cue: 0;
@@ -128,7 +129,9 @@ body {
   transform: translate(-50%, -50%) rotate(-4deg) scale(var(--hotzone-scale));
   transition:
     opacity .9s cubic-bezier(.22, .61, .36, 1),
-    transform 1.25s cubic-bezier(.22, .61, .36, 1);
+    transform 1.25s cubic-bezier(.22, .61, .36, 1),
+    border-radius .72s cubic-bezier(.22, .61, .36, 1),
+    filter .72s ease;
   pointer-events: none;
   will-change: opacity, transform;
 }
@@ -179,18 +182,12 @@ body {
 }
 
 .contact[data-intro="title-in"] .identity,
-.contact[data-intro="title-hold"] .identity {
+.contact[data-intro="title-hold"] .identity,
+.contact[data-intro="dissolving"] .identity,
+.contact[data-intro="contact"] .identity {
   opacity: 1;
   filter: blur(0) brightness(1);
   transform: translate(-50%, -50%) scale(1);
-}
-
-.contact[data-intro="dissolving"] .identity,
-.contact[data-intro="contact"] .identity {
-  opacity: 0;
-  filter: blur(12px) brightness(1.32);
-  transform: translate(-50%, -50%) scale(1.035);
-  transition-duration: 2.4s;
 }
 
 .sound-toggle {
@@ -344,26 +341,73 @@ body {
 .guide p {
   min-height: 1.6em;
   margin: 0;
-  padding-left: .2em;
-  color: rgba(var(--paper) / .82);
+  padding-left: .28em;
+  color: rgba(var(--paper) / .62);
   font-family: "PingFang SC", "Noto Sans CJK SC", sans-serif;
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: clamp(10px, .78vw, 13px);
   font-weight: 300;
   line-height: 1.6;
-  letter-spacing: .22em;
+  letter-spacing: .28em;
   text-shadow:
-    0 1px 12px rgba(0 0 0 / .96),
-    0 0 26px rgba(0 0 0 / .82);
+    0 1px 10px rgba(0 0 0 / .98),
+    0 0 22px rgba(0 0 0 / .9);
   opacity: 0;
   transform: translateY(6px);
   transition:
-    opacity .8s ease,
-    transform .95s cubic-bezier(.22, .61, .36, 1);
+    opacity .55s ease,
+    transform .65s cubic-bezier(.22, .61, .36, 1);
 }
 
 .guide p.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.gaze-countdown {
+  position: absolute;
+  z-index: 4;
+  left: calc(50% + var(--pupil-x));
+  top: calc(50% + var(--pupil-y) + clamp(92px, 16vmin, 156px));
+  width: 3em;
+  color: rgba(var(--paper) / .76);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(20px, 2.35vmin, 30px);
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: .04em;
+  text-align: center;
+  text-shadow:
+    0 0 12px rgba(0 0 0 / .98),
+    0 0 30px rgba(var(--paper) / .22);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.88);
+  transition:
+    opacity .38s ease,
+    transform .65s cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
+}
+
+.contact[data-countdown="active"] .gaze-countdown,
+.contact[data-countdown="releasing"] .gaze-countdown {
+  opacity: calc(.48 + var(--contact-countdown) * .40);
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.contact[data-countdown="ready"] .cosmos::after {
+  filter: blur(5px) saturate(.68) brightness(1.18);
+}
+
+.contact[data-countdown="active"] .cosmos::after,
+.contact[data-countdown="releasing"] .cosmos::after {
+  border-radius: 34% 66% 37% 63% / 52% 46% 54% 48%;
+  filter: blur(3px) saturate(.58) brightness(1.28);
+  transform:
+    translate(-50%, -50%)
+    rotate(1deg)
+    scale(var(--hotzone-scale))
+    scaleX(.72)
+    scaleY(1.08);
 }
 
 .contact-cursor {
@@ -457,7 +501,12 @@ noscript {
   }
 
   .guide p {
-    font-size: 13px;
+    font-size: 11px;
+  }
+
+  .gaze-countdown {
+    top: calc(50% + var(--pupil-y) + 94px);
+    font-size: 22px;
   }
 
   .sound-toggle {
@@ -493,6 +542,7 @@ noscript {
   .cosmos,
   .identity,
   .guide p,
+  .gaze-countdown,
   .sound-toggle,
   .sound-toggle img,
   .sound-prompt,
