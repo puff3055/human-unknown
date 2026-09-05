@@ -16,6 +16,7 @@
   const guideText = document.getElementById('guideText');
   const gazeCountdown = document.getElementById('gazeCountdown');
   const countdownNumber = document.getElementById('countdownNumber');
+  const entryControl = document.getElementById('entryControl');
   const contactCursor = document.getElementById('contactCursor');
   const soundToggle = document.getElementById('soundToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -68,6 +69,7 @@
     intentional: false,
     touchActive: false,
     keyboardActive: false,
+    entryActive: false,
     outer: false,
     core: false,
     coreAmount: 0,
@@ -322,6 +324,15 @@
       && target.closest
       && target.closest('#soundToggle')
     );
+  }
+
+  function isEntryTarget(target) {
+    return Boolean(target && target.closest && target.closest('#entryControl'));
+  }
+
+  function setEntryActive(active) {
+    interaction.entryActive = Boolean(active && phase === 'aligned');
+    entryControl?.classList.toggle('is-holding', interaction.entryActive);
   }
 
   function isPointerOverSoundControl() {
@@ -907,6 +918,10 @@
       lightCursor.setHoverTarget(isSoundTarget(event.target) ? 'sound' : 'none');
     }
     if (isSoundTarget(event.target)) return;
+    if (isEntryTarget(event.target)) {
+      setEntryActive(true);
+      entryControl.setPointerCapture?.(event.pointerId);
+    }
     if (event.pointerType === 'touch' || event.pointerType === 'pen') {
       interaction.touchActive = true;
     }
@@ -920,6 +935,7 @@
   }, { passive: true });
 
   window.addEventListener('pointerup', (event) => {
+    setEntryActive(false);
     if (lightCursor) lightCursor.setPressed(false);
     if (event.pointerType === 'touch' || event.pointerType === 'pen') {
       interaction.touchActive = false;
@@ -927,6 +943,7 @@
   }, { passive: true });
 
   window.addEventListener('pointercancel', (event) => {
+    setEntryActive(false);
     if (lightCursor) lightCursor.setPressed(false);
     if (event.pointerType === 'touch' || event.pointerType === 'pen') {
       interaction.touchActive = false;
@@ -944,6 +961,10 @@
     ) return;
     event.preventDefault();
     if (event.repeat) return;
+    if (isEntryTarget(event.target)) {
+      setEntryActive(true);
+      return;
+    }
     interaction.keyboardActive = true;
     pointer.x = window.innerWidth / 2 + gaze.x;
     pointer.y = window.innerHeight / 2 + gaze.y;
@@ -959,6 +980,7 @@
 
   document.addEventListener('keyup', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
+      setEntryActive(false);
       interaction.keyboardActive = false;
     }
   });
@@ -985,6 +1007,7 @@
     presence.targetStudy = 0;
     interaction.touchActive = false;
     interaction.keyboardActive = false;
+    setEntryActive(false);
     contact.classList.remove('has-pointer');
     if (lightCursor) {
       lightCursor.setPressed(false);
@@ -1437,10 +1460,11 @@
     updateGaze(deltaSeconds);
     updateApproach(deltaSeconds, now);
     if (encounter) {
+      const usingEntryControl = phase === 'aligned';
       applyEncounterState(encounter.update(now, {
-        outer: interaction.outer,
-        core: interaction.core,
-        active: getContactIsActive(),
+        outer: interaction.intentional,
+        core: usingEntryControl ? interaction.entryActive : interaction.intentional,
+        active: usingEntryControl ? interaction.entryActive : interaction.intentional,
       }), now);
     }
     updateLightCursor(deltaSeconds);
@@ -1616,7 +1640,7 @@
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
       contract: {
-        version: '4.3',
+        version: '4.4',
         phaseAttribute: 'data-phase',
         introAttribute: 'data-intro',
         countdownAttribute: 'data-countdown',

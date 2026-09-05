@@ -145,6 +145,7 @@ body {
     filter .72s ease;
   pointer-events: none;
   will-change: opacity, transform;
+  display: none;
 }
 
 .cosmos canvas {
@@ -374,6 +375,46 @@ body {
   transform: translateY(0);
 }
 
+.entry-control {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 34vh;
+  min-width: 190px;
+  padding: 13px 24px;
+  border: 1px solid rgba(var(--paper) / .38);
+  border-radius: 2px;
+  background: rgba(var(--paper) / .07);
+  color: rgba(var(--paper) / .78);
+  font: 300 12px/1.4 "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  letter-spacing: .22em;
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, 7px);
+  transition: opacity .55s ease, transform .65s ease, background-color .3s ease;
+  pointer-events: none;
+  cursor: none;
+  touch-action: none;
+}
+
+.contact[data-phase="aligned"] .entry-control {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.entry-control:hover,
+.entry-control:focus-visible,
+.entry-control.is-holding {
+  border-color: rgba(var(--paper) / .68);
+  background: rgba(var(--paper) / calc(.09 + var(--contact-hold) * .16));
+  outline: none;
+}
+
+.contact[data-phase="aligned"] .guide {
+  opacity: 0;
+}
+
 .gaze-countdown {
   position: absolute;
   z-index: 4;
@@ -591,6 +632,11 @@ noscript {
   .guide {
     top: 25.5vh;
     width: 88vw;
+  }
+
+  .entry-control {
+    top: 32.5vh;
+    min-width: 180px;
   }
 
   :root {
