@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="HUMAN UNKNOWN — 进入三个由交互显露的未知世界。">
+  <title>HUMAN UNKNOWN — 世界仍在发生</title>
+  <link rel="preload" as="image" href="assets/anchors/section-1.jpg">
+  <link rel="stylesheet" href="world-runtime.css?v=0.1.3">
+</head>
+<body>
+  <a class="skip-link" href="#guideText">跳到当前引导</a>
+
+  <main class="experience" id="experience" data-chapter="entry" data-stage="0">
+    <div class="world-view" aria-hidden="true">
+      <div class="anchor-field" id="anchorField">
+        <img class="anchor" data-anchor="section-1" src="assets/anchors/section-1.jpg" alt="" width="1366" height="768" draggable="false">
+        <img class="anchor" data-anchor="section-2" src="assets/anchors/section-2.jpg" alt="" width="1366" height="768" draggable="false">
+        <img class="anchor" data-anchor="section-3" src="assets/anchors/section-3.jpg" alt="" width="1366" height="768" draggable="false">
+        <img class="anchor" data-anchor="exchange-1" src="assets/anchors/exchange-1.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+        <img class="anchor" data-anchor="exchange-2" src="assets/anchors/exchange-2.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+        <img class="anchor" data-anchor="exchange-3" src="assets/anchors/exchange-3.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+        <img class="anchor" data-anchor="reality-1" src="assets/anchors/reality-1.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+        <img class="anchor" data-anchor="reality-2" src="assets/anchors/reality-2.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+        <img class="anchor" data-anchor="reality-3" src="assets/anchors/reality-3.jpg" alt="" width="1366" height="768" draggable="false" loading="lazy">
+      </div>
+      <canvas
+        id="worldCanvas"
+        tabindex="0"
+        role="application"
+        aria-label="未知世界交互区域。方向键移动探针；按住空格接触，或用回车键切换接触与放开。"
+      ></canvas>
+      <div class="world-matte"></div>
+    </div>
+
+    <header class="identity" aria-label="HUMAN UNKNOWN">
+      <p>HUMAN UNKNOWN</p>
+    </header>
+
+    <nav class="utilities" aria-label="体验设置">
+      <button class="utility" id="soundToggle" type="button" aria-pressed="false">
+        <span>声音</span><span id="soundState">关闭</span>
+      </button>
+      <button class="utility" id="motionToggle" type="button" aria-pressed="false">
+        <span>动态</span><span id="motionState">完整</span>
+      </button>
+      <button class="utility" id="hintToggle" type="button" aria-pressed="false">
+        <span>提示</span><span id="hintState">隐去</span>
+      </button>
+      <button class="utility mic-toggle" id="micToggle" type="button" aria-pressed="false" hidden>
+        <span>声息输入</span><span id="micState">关闭</span>
+      </button>
+    </nav>
+
+    <section class="entry" id="entryPanel" aria-labelledby="entryTitle">
+      <p class="entry-eyebrow">一次主动接触</p>
+      <h1 id="entryTitle">不要急着辨认它。</h1>
+      <p class="entry-copy">进去以后，没有画面会替你前进。<br>每一次显露，都需要你先改变这里。</p>
+      <button class="entry-action" id="entryAction" type="button">继续向内</button>
+      <p class="entry-sound-note">声音可稍后开启，始终不是完成条件。</p>
+    </section>
+
+    <section class="guide" id="guide" aria-live="polite" aria-atomic="true">
+      <p class="guide-text" id="guideText">不要急着辨认它。</p>
+      <p class="action-hint" id="actionHint" hidden></p>
+    </section>
+
+    <p class="input-status visually-hidden" id="inputStatus" aria-live="polite"></p>
+
+    <section class="archive" id="archive" aria-labelledby="archiveTitle" hidden>
+      <header class="archive-hero">
+        <p class="archive-eyebrow">HUMAN UNKNOWN / FIELD NOTES</p>
+        <h1 id="archiveTitle" tabindex="-1">你离开的不是三个世界。</h1>
+        <p>是三种曾经显得理所当然的解释。</p>
+      </header>
+
+      <section class="journey-echo" aria-labelledby="echoTitle">
+        <p class="section-index">你的这次接触</p>
+        <h2 id="echoTitle">世界记住了这些动作</h2>
+        <ol class="echo-list">
+          <li>
+            <span>01</span>
+            <p id="sectionEcho">你停止追逐单个形状，开始寻找跨越边界的连续变化。</p>
+          </li>
+          <li>
+            <span>02</span>
+            <p id="exchangeEcho">你看见一次局部给予如何在远处留下代价，并改变了下一次介入。</p>
+          </li>
+          <li>
+            <span>03</span>
+            <p id="realityEcho">一条被放弃的路径没有消失；它后来与当前路径共同完成了结构。</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="lineages" aria-labelledby="lineageTitle">
+        <p class="section-index">继续探索</p>
+        <h2 id="lineageTitle">从体验回到现实知识</h2>
+        <p class="lineage-intro">这里把数学模型、科学观察、争论与科幻分开标注。它们提供来源，不替未知盖章。</p>
+
+        <article class="lineage" id="lineageSection">
+          <header>
+            <p>01 / 数学模型与科幻设定</p>
+            <h3>截面之外</h3>
+          </header>
+          <ul>
+            <li>
+              <a href="https://www.gutenberg.org/ebooks/201" target="_blank" rel="noreferrer">《Flatland / 平面国》— Edwin A. Abbott</a>
+              <p>用二维居民的限制，让“看见”与“完整存在”第一次分开。</p>
+            </li>
+            <li>
+              <a href="https://www.math.brown.edu/tbanchof/STG/ma8/papers/mmatthews/Slicing.html" target="_blank" rel="noreferrer">Slicing Polyhedra — Brown University</a>
+              <p>数学模型：观察高维对象的低维截面序列。数学成立不等于高维生命已被发现。</p>
+            </li>
+            <li>
+              <a href="https://miegakure.com/" target="_blank" rel="noreferrer">Miegakure — Marc ten Bosch</a>
+              <p>互动作品：通过移动与旋转三维截面，学习四维空间的后果。</p>
+            </li>
+          </ul>
+        </article>
+
+        <article class="lineage" id="lineageExchange">
+          <header>
+            <p>02 / 科学观察、争论与科幻</p>
+            <h3>交换场</h3>
+          </header>
+          <ul>
+            <li>
+              <a href="https://www.adriantchaikovsky.com/children-of-time-series.html" target="_blank" rel="noreferrer">《Children of Time / 时间之子》— Adrian Tchaikovsky</a>
+              <p>从感知、生态与行为机制推导非人类文明，而不是替人类社会更换外形。</p>
+            </li>
+            <li>
+              <a href="https://english.lem.pl/works/novels/solaris" target="_blank" rel="noreferrer">《Solaris / 索拉里斯星》— Stanisław Lem</a>
+              <p>当他者不能被人类熟悉的交流框架完整翻译，接触意味着什么。</p>
+            </li>
+            <li>
+              <a href="https://pubmed.ncbi.nlm.nih.gov/27822520/" target="_blank" rel="noreferrer">Getting the Hologenome Concept Right — Theis et al.</a>
+              <p>科学框架：宿主与微生物构成动态复合实体；成员可来自环境，关系并非固定。</p>
+            </li>
+            <li>
+              <a href="https://pubmed.ncbi.nlm.nih.gov/27034285/" target="_blank" rel="noreferrer">Holes in the Hologenome — Douglas &amp; Werren</a>
+              <p>科学争论：合作、冲突与不同选择层级同时存在，不能把复合体简单说成统一意识。</p>
+            </li>
+          </ul>
+        </article>
+
+        <article class="lineage" id="lineageReality">
+          <header>
+            <p>03 / 物理解释与文学想象</p>
+            <h3>仍在发生</h3>
+          </header>
+          <ul>
+            <li>
+              <a href="https://journals.aps.org/rmp/abstract/10.1103/RevModPhys.29.454" target="_blank" rel="noreferrer">“Relative State” Formulation — Hugh Everett III</a>
+              <p>物理理论史：相对态公式化是后来多世界讨论的重要起点。</p>
+            </li>
+            <li>
+              <a href="https://plato.stanford.edu/archives/spr2023/entries/qm-manyworlds/" target="_blank" rel="noreferrer">Many-Worlds Interpretation — Stanford Encyclopedia of Philosophy</a>
+              <p>科学解释综述：区分形式主义、经验对应和“世界”概念；它不是已被排他验证的事实。</p>
+            </li>
+            <li>
+              <span>《The Garden of Forking Paths / 小径分岔的花园》— Jorge Luis Borges</span>
+              <p>文学：并存可能性如何改变我们组织时间与因果的方式。</p>
+            </li>
+            <li>
+              <a href="https://www.penguinrandomhouse.com/books/538034/exhalation-by-ted-chiang/" target="_blank" rel="noreferrer">《Anxiety Is the Dizziness of Freedom / 焦虑是自由引起的眩晕》— Ted Chiang</a>
+              <p>科幻：如果近邻可能性可以被看见，我们要如何对待另一条人生。</p>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <footer class="archive-actions" aria-label="旅程后续">
+        <p>回去不会清除已经发生的路径。</p>
+        <div>
+          <button class="archive-action" type="button" data-revisit="section">回访第一种边界</button>
+          <button class="archive-action" type="button" data-revisit="exchange">回访交换关系</button>
+          <button class="archive-action" type="button" data-revisit="reality">回访遗留路径</button>
+          <a class="archive-action" href="../">回到入口</a>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <noscript>请启用 JavaScript，完成这次接触。</noscript>
+  <script src="world-audio.js?v=0.1.3"></script>
+  <script src="world-renderer.js?v=0.1.3"></script>
+  <script src="world-runtime.js?v=0.1.3"></script>
+</body>
+</html>

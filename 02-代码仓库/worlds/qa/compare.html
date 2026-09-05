@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUMAN UNKNOWN — Visual QA</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Helvetica Neue", "PingFang SC", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 36px; color: #d9d8d4; background: #080808; }
+    header { max-width: 920px; margin: 0 auto 34px; }
+    h1 { margin: 0 0 10px; font-size: 24px; font-weight: 300; letter-spacing: .08em; }
+    p { margin: 0; color: #858585; font-size: 13px; line-height: 1.7; }
+    .pair { max-width: 1600px; margin: 0 auto 44px; padding-top: 24px; border-top: 1px solid #262626; }
+    .pair h2 { margin: 0 0 14px; font-size: 15px; font-weight: 400; letter-spacing: .1em; }
+    .frames { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    figure { margin: 0; }
+    figcaption { margin-bottom: 8px; color: #777; font-size: 11px; letter-spacing: .12em; }
+    img { display: block; width: 100%; aspect-ratio: 1672 / 941; object-fit: contain; background: #000; border: 1px solid #202020; }
+    @media (max-width: 900px) {
+      body { padding: 22px; }
+      .frames { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>HUMAN UNKNOWN / 同态视觉校验</h1>
+    <p>每组均为 1672 × 941、同一叙事状态。左侧为生成后的视觉锚点，右侧为浏览器实际运行画面。</p>
+  </header>
+
+  <section class="pair" id="section-pair">
+    <h2>01 / 截面之外 · 连续身体显露</h2>
+    <div class="frames">
+      <figure><figcaption>REFERENCE</figcaption><img src="reference-section-2.png" alt="截面之外视觉锚点"></figure>
+      <figure><figcaption>IMPLEMENTATION</figcaption><img src="implementation-section-2-desktop.png" alt="截面之外浏览器实现"></figure>
+    </div>
+  </section>
+
+  <section class="pair" id="exchange-pair">
+    <h2>02 / 交换场 · 整体重平衡</h2>
+    <div class="frames">
+      <figure><figcaption>REFERENCE</figcaption><img src="reference-exchange-2.png" alt="交换场视觉锚点"></figure>
+      <figure><figcaption>IMPLEMENTATION</figcaption><img src="implementation-exchange-2-desktop.png" alt="交换场浏览器实现"></figure>
+    </div>
+  </section>
+
+  <section class="pair" id="reality-pair">
+    <h2>03 / 仍在发生 · 遗留现实共同完成</h2>
+    <div class="frames">
+      <figure><figcaption>REFERENCE</figcaption><img src="reference-reality-2.png" alt="仍在发生视觉锚点"></figure>
+      <figure><figcaption>IMPLEMENTATION</figcaption><img src="implementation-reality-2-desktop.png" alt="仍在发生浏览器实现"></figure>
+    </div>
+  </section>
+
+  <script>
+    const selectedPair = new URLSearchParams(window.location.search).get('pair');
+    if (selectedPair) {
+      document.querySelectorAll('.pair').forEach((pair) => {
+        pair.hidden = pair.id !== `${selectedPair}-pair`;
+      });
+    }
+  </script>
+</body>
+</html>
