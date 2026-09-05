@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HUMAN UNKNOWN — reduced motion QA</title>
   <base href="../">
-  <link rel="stylesheet" href="style.css?v=4.2.0-rc.1">
+  <link rel="stylesheet" href="style.css?v=4.3.0-rc.2">
   <script>
     const nativeMatchMedia = window.matchMedia.bind(window);
     window.matchMedia = (query) => {
@@ -43,11 +43,19 @@
     </header>
     <div class="guide" aria-live="polite" aria-atomic="true"><p id="guideText"></p></div>
     <div class="gaze-countdown" id="gazeCountdown" aria-live="polite" aria-atomic="true" aria-hidden="true"><span id="countdownNumber"></span></div>
-    <div class="contact-cursor" id="contactCursor" aria-hidden="true"><span></span></div>
+    <div class="contact-cursor" id="contactCursor" data-mode="cloud" data-target="none" aria-hidden="true">
+      <span class="contact-cursor__stage">
+        <img class="contact-cursor__light contact-cursor__cloud contact-cursor__cloud--veil" src="assets/cursor-light-cloud.png" alt="" width="320" height="320" draggable="false">
+        <img class="contact-cursor__light contact-cursor__cloud contact-cursor__cloud--body" src="assets/cursor-light-cloud.png" alt="" width="320" height="320" draggable="false">
+        <img class="contact-cursor__light contact-cursor__point contact-cursor__point--halo" src="assets/cursor-light-point.png" alt="" width="192" height="192" draggable="false">
+        <img class="contact-cursor__light contact-cursor__point contact-cursor__point--body" src="assets/cursor-light-point.png" alt="" width="192" height="192" draggable="false">
+      </span>
+    </div>
   </main>
-  <script src="encounter-machine.js?v=4.2.0-rc.1"></script>
-  <script src="living-nebula.js?v=4.2.0-rc.1"></script>
-  <script src="living-soundscape.js?v=4.2.0-rc.1"></script>
-  <script src="app.js?v=4.2.0-rc.1"></script>
+  <script src="encounter-machine.js?v=4.3.0-rc.2"></script>
+  <script src="living-nebula.js?v=4.3.0-rc.2"></script>
+  <script src="living-soundscape.js?v=4.3.0-rc.2"></script>
+  <script src="light-cursor.js?v=4.3.0-rc.2"></script>
+  <script src="app.js?v=4.3.0-rc.2"></script>
 </body>
 </html>
