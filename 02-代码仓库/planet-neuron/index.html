@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#020405" />
     <title>RECURSIVE COSMOS | HUMAN UNKNOWN</title>
     <link rel="stylesheet" href="./planet-neuron.css?v=20260906-narrative" />
+    <link rel="stylesheet" href="../journey-transition.css?v=full-journey-0.1.0-rc.1" />
   </head>
   <body>
     <main class="world" data-world data-phase="loading" aria-label="第二章：递归宇宙互动世界">
@@ -21,7 +22,7 @@
         <span class="chapter__depth" data-depth>SCALE 01</span>
       </header>
 
-      <button class="sound" type="button" data-sound data-ui aria-label="开启声音" aria-pressed="false">
+      <button class="sound" type="button" data-sound data-ui aria-label="关闭声音" aria-pressed="true">
         <span class="sound__signal" aria-hidden="true"><i></i><i></i><i></i></span>
       </button>
 
@@ -49,7 +50,10 @@
         </aside>
         <button class="narrative__continue" type="button" data-continue data-ui>继续 →</button>
         <div class="narrative__actions" data-actions>
-          <button class="narrative__primary" type="button" data-open-inspiration data-ui>打开本章的灵感余迹</button>
+          <button class="narrative__primary" type="button" data-next-world data-ui>
+            进入现实的分岔 · CHAPTER 03
+          </button>
+          <button type="button" data-open-inspiration data-ui>打开本章的灵感余迹</button>
           <button type="button" data-replay data-ui>再次进入</button>
           <a href="../index.html" data-ui>返回 HUMAN UNKNOWN</a>
         </div>
@@ -133,6 +137,7 @@
 
     <script src="./planet-neuron-renderer.js"></script>
     <script src="./planet-neuron-sound.js"></script>
+    <script src="../journey-transition.js?v=full-journey-0.1.0-rc.1"></script>
     <script src="./planet-neuron.js?v=20260906-narrative"></script>
   </body>
 </html>

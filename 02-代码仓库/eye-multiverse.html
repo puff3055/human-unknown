@@ -9,6 +9,7 @@
   <link rel="preload" as="image" href="assets/eye-orb-source-cutout.png">
   <link rel="preload" as="image" href="assets/eye-multiverse-corridor-v1.png">
   <link rel="stylesheet" href="eye-multiverse.css?v=0.9.0">
+  <link rel="stylesheet" href="journey-transition.css?v=full-journey-0.1.0-rc.1">
 </head>
 <body>
   <main class="multiverse" id="multiverse" data-state="idle" data-input="pointer">
@@ -45,8 +46,8 @@
           <span id="count">00</span>
           <small>WORLDS ANSWERED</small>
         </div>
-        <button class="multiverse__sound" id="soundButton" type="button" aria-pressed="false" aria-label="开启声音">
-          <img id="soundIcon" src="assets/tabler-volume-off.svg" alt="">
+        <button class="multiverse__sound" id="soundButton" type="button" aria-pressed="true" aria-label="关闭声音">
+          <img id="soundIcon" src="assets/tabler-volume.svg" alt="">
         </button>
       </div>
     </header>
@@ -123,6 +124,7 @@
     <p class="visually-hidden" id="status" aria-live="assertive" aria-atomic="true"></p>
   </main>
   <noscript>请启用 JavaScript，让这个世界回应你。</noscript>
+  <script src="journey-transition.js?v=full-journey-0.1.0-rc.1"></script>
   <script src="eye-multiverse.js?v=0.9.0"></script>
 </body>
 </html>

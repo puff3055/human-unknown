@@ -34,6 +34,7 @@
   const closeTraces = document.getElementById('closeTraces');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SOUND_STORAGE_KEY = 'human-unknown:sound-enabled';
 
   const NARRATIVES = Object.freeze([
     {
@@ -250,7 +251,10 @@
   let width = innerWidth, height = innerHeight, dpr = 1, lastTime = performance.now(), worldCount = 0, archiveWeight = 0;
   let lastLaunchAt = -Infinity, queueTimer = 0, attentionEye = null, lastTarget = null, lastDepthBand = '', nextEyeId = 1;
   let recognition = null, listeningWanted = false, restarting = false, manualFallback = false, recognizedByIndex = new Map(), voiceResetTimer = 0, voicePulseAt = -Infinity;
-  let mediaStream = null, analyser = null, audio = null, soundOn = false, voiceLevel = 0;
+  let mediaStream = null, analyser = null, audio = null, soundOn = (() => {
+    try { return localStorage.getItem(SOUND_STORAGE_KEY) !== 'off'; }
+    catch (_) { return true; }
+  })(), voiceLevel = 0;
   let gl = null, program = null, eyeTexture = null, environmentTexture = null, positionBuffer = null, ready = false, visualEyeImage = null;
   let environmentResolution = { width: 1672, height: 941 };
   const eyeA = new Float32Array(MAX_EYES * 4), eyeB = new Float32Array(MAX_EYES * 4), eyeC = new Float32Array(MAX_EYES * 4), eyeD = new Float32Array(MAX_EYES * 4);
@@ -439,6 +443,7 @@
   async function startMicrophone() { listenButton.disabled = true;manualFallback = false;setVoiceState('requesting', '正在等待麦克风权限', '');ensureAudio();try { if (!navigator.mediaDevices?.getUserMedia) throw new Error('mediaDevices unavailable');mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });const source = audio.ctx.createMediaStreamSource(mediaStream);analyser = audio.ctx.createAnalyser();analyser.fftSize = 1024;analyser.smoothingTimeConstant = .40;source.connect(analyser);listeningWanted = true;listenButton.disabled = false;if (!recognition && !setupRecognition()) { listeningWanted = false;manualFallback = true;setVoiceState('fallback', '语音识别不可用', '点击麦克风继续体验');return; }try { recognition.start(); }catch (_) { setVoiceState('listening', '正在听…', '说出 hey'); } }catch (_) { listeningWanted = false;manualFallback = false;listenButton.disabled = false;setVoiceState('denied', '无法使用麦克风', '点击重试'); } }
   function stopMicrophone() { listeningWanted = false;manualFallback = false;if (recognition) { try { recognition.stop(); }catch (_) {} }if (mediaStream) { mediaStream.getTracks().forEach(track => track.stop());mediaStream = null; }analyser = null;setVoiceState('idle', '让它们听见你', '麦克风未开启'); }
   function ensureAudio() { if (audio) { if (audio.ctx.state === 'suspended') audio.ctx.resume();return; }const AudioContext = window.AudioContext || window.webkitAudioContext;if (!AudioContext) return;const context = new AudioContext(), master = context.createGain();master.gain.value = soundOn ? .14 : 0;master.connect(context.destination);audio = { ctx: context, master }; }
+  function syncSoundControl() { soundButton.setAttribute('aria-pressed', String(soundOn));soundButton.setAttribute('aria-label', soundOn ? '关闭声音' : '开启声音');soundIcon.src = soundOn ? 'assets/tabler-volume.svg' : 'assets/tabler-volume-off.svg'; }
   function playCue(kind, eye) { if (!soundOn || !audio || !eye) return;const context = audio.ctx, now = context.currentTime, oscillator = context.createOscillator(), gain = context.createGain(), panner = context.createStereoPanner ? context.createStereoPanner() : null, frequency = { heard: [330, 244], focus: [126, 172], birth: [74, 162], open: [166, 438] }[kind] || [110, 230];oscillator.type = kind === 'heard' ? 'sine' : 'triangle';oscillator.frequency.setValueAtTime(frequency[0], now);oscillator.frequency.exponentialRampToValueAtTime(frequency[1], now + .48);gain.gain.setValueAtTime(.0001, now);gain.gain.exponentialRampToValueAtTime(.040, now + .035);gain.gain.exponentialRampToValueAtTime(.0001, now + .60);oscillator.connect(gain);if (panner) { gain.connect(panner);panner.pan.value = clamp((screenEye(eye).x / width - .5) * 1.6, -1, 1);panner.connect(audio.master); }else gain.connect(audio.master);oscillator.start(now);oscillator.stop(now + .62); }
   function updateAttention() { if (rituals.length) return;const next = nearestEyeToPointer();if (next) attentionEye = next; }
   function updateCamera(dt) { const response = 1 - Math.pow(.945, dt / 16.67);camera.x += (camera.targetX - camera.x) * response;camera.y += (camera.targetY - camera.y) * response;camera.z += (camera.targetZ - camera.z) * response;camera.scale += (camera.targetScale - camera.scale) * response; }
@@ -464,9 +469,9 @@
   closeTraces.addEventListener('click', () => setTraces(false));
   tracesBackdrop.addEventListener('click', () => setTraces(false));
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && root.dataset.traces === 'open') setTraces(false); });
-  soundButton.addEventListener('click', () => { ensureAudio();soundOn = !soundOn;soundButton.setAttribute('aria-pressed', String(soundOn));soundButton.setAttribute('aria-label', soundOn ? '关闭声音' : '开启声音');soundIcon.src = soundOn ? 'assets/tabler-volume.svg' : 'assets/tabler-volume-off.svg';if (audio) audio.master.gain.setTargetAtTime(soundOn ? .14 : 0, audio.ctx.currentTime, .08); });
+  soundButton.addEventListener('click', () => { ensureAudio();soundOn = !soundOn;try { localStorage.setItem(SOUND_STORAGE_KEY, soundOn ? 'on' : 'off'); }catch (_) {}syncSoundControl();if (audio) audio.master.gain.setTargetAtTime(soundOn ? .14 : 0, audio.ctx.currentTime, .08); });
   root.addEventListener('pointermove', event => { pointer.x = event.clientX;pointer.y = event.clientY;root.dataset.input = event.pointerType === 'touch' ? 'touch' : 'pointer';updateAttention(); });
-  addEventListener('resize', resize);document.addEventListener('visibilitychange', () => { if (document.hidden) stopMicrophone(); });root.dataset.density = 'folded';resize();
+  addEventListener('resize', resize);document.addEventListener('visibilitychange', () => { if (document.hidden) stopMicrophone(); });root.dataset.density = 'folded';syncSoundControl();resize();
 
   Promise.all([loadImage('assets/eye-orb-source-cutout.png'), loadImage('assets/eye-multiverse-corridor-v1.png')]).then(([eyeImage, environmentImage]) => { visualEyeImage = eyeImage;try { initializeWebGL(eyeImage, environmentImage);resize(); }catch (error) { console.error(error);setVoiceState('fallback', '视觉渲染暂时不可用', '请更新浏览器'); } }).catch(error => { console.error(error);setVoiceState('fallback', '视觉素材加载失败', '请刷新页面'); });
   requestAnimationFrame(frame);

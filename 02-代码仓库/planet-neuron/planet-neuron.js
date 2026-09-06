@@ -19,6 +19,7 @@
   const drawerShade = document.querySelector("[data-drawer-shade]");
   const inspiration = document.querySelector("[data-inspiration]");
   const replayButton = document.querySelector("[data-replay]");
+  const nextWorldButton = document.querySelector("[data-next-world]");
   const depthLabel = document.querySelector("[data-depth]");
   const status = document.querySelector("[data-status]");
   const soundButton = document.querySelector("[data-sound]");
@@ -30,6 +31,7 @@
 
   const renderer = new window.PlanetNeuronRenderer(canvas);
   const sound = new window.PlanetNeuronSound();
+  const SOUND_STORAGE_KEY = "human-unknown:sound-enabled";
   const HERO = { x: 0.466, y: 0.505 };
   const MIN_DEPTH = Number(scaleInput.min);
   const MAX_DEPTH = Number(scaleInput.max);
@@ -45,6 +47,10 @@
   const acknowledgedScenes = new Set();
   const collectedSources = new Set();
   let scaleDragging = false;
+  let soundWanted = (() => {
+    try { return localStorage.getItem(SOUND_STORAGE_KEY) !== "off"; }
+    catch (_) { return true; }
+  })();
   let idleHintTimer = 0;
   let introTimers = [];
 
@@ -363,7 +369,6 @@
     const position = eventPositions[state.ambientIndex % eventPositions.length];
     const kind = state.ambientIndex % 3 === 1 ? "annihilation" : "burst";
     renderer.addEvent(kind, position, kind === "burst" ? 1450 : 2250);
-    sound.ambientEvent(kind, position.x);
     state.ambientIndex += 1;
     state.nextAmbientAt = now + 2700 + Math.random() * 3900;
   }
@@ -446,10 +451,20 @@
   }
 
   async function toggleSound() {
-    const shouldEnable = !sound.enabled;
-    if (shouldEnable) await sound.enable(); else sound.disable();
-    soundButton.setAttribute("aria-pressed", String(shouldEnable));
-    soundButton.setAttribute("aria-label", shouldEnable ? "关闭声音" : "开启声音");
+    soundWanted = !soundWanted;
+    try { localStorage.setItem(SOUND_STORAGE_KEY, soundWanted ? "on" : "off"); } catch (_) {}
+    if (soundWanted) await sound.enable(); else sound.disable();
+    syncSoundControl();
+  }
+
+  function syncSoundControl() {
+    soundButton.setAttribute("aria-pressed", String(soundWanted));
+    soundButton.setAttribute("aria-label", soundWanted ? "关闭声音" : "开启声音");
+  }
+
+  function activatePreferredSound(event) {
+    if (event.target.closest?.("[data-sound]") || !soundWanted || sound.enabled) return;
+    sound.enable();
   }
 
   function openInspiration() {
@@ -496,6 +511,7 @@
       setPhase("idle");
       status.textContent = "递归宇宙已载入。";
       updateScaleControl();
+      syncSoundControl();
       beginIntro();
       requestAnimationFrame(frame);
     } catch (error) {
@@ -507,6 +523,7 @@
 
   window.addEventListener("resize", () => renderer.resize());
   window.addEventListener("pointermove", updatePointer, { passive: true });
+  window.addEventListener("pointerdown", activatePreferredSound, { passive: true });
   window.addEventListener("pointerleave", leaveWorld);
   window.addEventListener("wheel", handleWheel, { passive: false });
   canvas.addEventListener("click", handleClick);
@@ -537,6 +554,9 @@
   closeInspirationButton.addEventListener("click", closeInspiration);
   drawerShade.addEventListener("click", closeInspiration);
   replayButton.addEventListener("click", replay);
+  nextWorldButton.addEventListener("click", () => {
+    window.HumanUnknownJourney?.go("../eye-multiverse.html", { kind: "branch" });
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && world.classList.contains("is-drawer-open")) closeInspiration();
   });

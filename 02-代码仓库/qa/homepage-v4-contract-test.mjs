@@ -275,7 +275,7 @@ assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
 assert.match(html, /data-countdown="waiting"/);
 assert.match(html, /id="gazeCountdown"/);
-assert.match(html, /encounter-machine\.js\?v=interaction-sound-0\.1\.0-rc\.1/);
+assert.match(html, /encounter-machine\.js\?v=(?:interaction-sound-0\.1\.0-rc\.1|full-journey-0\.1\.0-rc\.1)/);
 assert.match(html, /在中央瞳孔内连续停留三秒/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);

@@ -13,6 +13,7 @@
   <link rel="preload" as="image" href="assets/world1-update-2-background@2x.png">
   <link rel="stylesheet" href="style.css?v=full-journey-0.1.0-rc.1">
   <link rel="stylesheet" href="green-body-realtime.css?v=full-journey-0.1.0-rc.1">
+  <link rel="stylesheet" href="journey-transition.css?v=full-journey-0.1.0-rc.1">
 </head>
 <body>
   <main
@@ -191,7 +192,13 @@
       <div class="world-one__source-list" id="worldSourcesList"></div>
       <footer>
         <p>这些作品没有替你回答“我在哪里”。它们只是把这个问题带得更远。</p>
-        <button id="worldSourcesContinue" type="button">继续感知这个世界</button>
+        <div class="world-one__source-actions">
+          <button id="worldSourcesContinue" type="button">继续感知这个世界</button>
+          <button class="world-one__next" id="worldNext" type="button">
+            <span>进入尺度的未知</span>
+            <small>CHAPTER 02 · RECURSIVE COSMOS</small>
+          </button>
+        </div>
       </footer>
     </aside>
     <div class="world-one__cursor" id="worldCursor" aria-hidden="true"><i></i></div>
@@ -225,6 +232,7 @@
   <script src="green-body-living.js?v=full-journey-0.1.0-rc.1"></script>
   <script src="green-body-narrative.js?v=full-journey-0.1.0-rc.1"></script>
   <script src="green-body-realtime.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="journey-transition.js?v=full-journey-0.1.0-rc.1"></script>
   <script src="journey-controller.js?v=full-journey-0.1.0-rc.1"></script>
   <script src="app.js?v=full-journey-0.1.0-rc.1"></script>
 </body>

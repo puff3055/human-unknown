@@ -5,6 +5,7 @@
   const world = document.getElementById('worldOne');
   const bridge = document.getElementById('journeyBridge');
   const carrier = document.getElementById('journeyCarrier');
+  const nextButton = document.getElementById('worldNext');
   if (!contact || !world || !bridge || !carrier || !window.__worldOne) return;
 
   const ENTRY_NODE = 'spore-center-low';
@@ -127,6 +128,9 @@
   window.addEventListener('humanunknown:homepage-exit', commitHandoff, { once: true });
   world.addEventListener('greenbody:exit', (event) => {
     if (event.detail?.destination === 'home') window.location.reload();
+  });
+  nextButton?.addEventListener('click', () => {
+    window.HumanUnknownJourney?.go('planet-neuron/index.html', { kind: 'scale' });
   });
 
   window.__humanUnknownJourney = {

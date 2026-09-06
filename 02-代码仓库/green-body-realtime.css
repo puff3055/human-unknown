@@ -121,6 +121,12 @@ body.world-one-active { overflow: hidden; cursor: none; }
 .world-one__source a:hover { color: rgba(233,244,199,.98); }
 .world-one__sources footer { padding-top: 8px; border-top: 1px solid rgba(203,222,157,.14); }
 .world-one__sources footer button { margin-top: 24px; border: 1px solid rgba(199,220,148,.34); padding: 14px 18px; color: rgba(240,244,225,.84); background: rgba(173,207,102,.07); font: 600 13px/1 Arial, "Noto Sans SC", sans-serif; letter-spacing: .13em; cursor: pointer; }
+.world-one__source-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 24px; }
+.world-one__source-actions button { width: 100%; margin-top: 0; text-align: left; transition: color 240ms ease, border-color 240ms ease, background 240ms ease; }
+.world-one__source-actions button:hover { color: rgba(252,255,241,.98); border-color: rgba(211,233,158,.62); }
+.world-one__source-actions .world-one__next { padding: 17px 18px; background: rgba(188,220,113,.13); }
+.world-one__next span, .world-one__next small { display: block; }
+.world-one__next small { margin-top: 8px; color: rgba(194,218,139,.63); font-size: 9px; letter-spacing: .2em; }
 .world-one[data-sources-open="true"] .world-one__cursor { opacity: 0; }
 
 .journey-bridge {
