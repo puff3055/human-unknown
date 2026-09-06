@@ -21,8 +21,58 @@
   const signalToken = document.getElementById('signalToken');
   const countNode = document.getElementById('count');
   const status = document.getElementById('status');
+  const chapterIntro = document.getElementById('chapterIntro');
+  const enterChapter = document.getElementById('enterChapter');
+  const chapterIdentity = document.getElementById('chapterIdentity');
+  const worldNarrative = document.getElementById('worldNarrative');
+  const narrativeEyebrow = document.getElementById('narrativeEyebrow');
+  const narrativeLine = document.getElementById('narrativeLine');
+  const narrativeSource = document.getElementById('narrativeSource');
+  const tracesTrigger = document.getElementById('tracesTrigger');
+  const tracesDrawer = document.getElementById('tracesDrawer');
+  const tracesBackdrop = document.getElementById('tracesBackdrop');
+  const closeTraces = document.getElementById('closeTraces');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const NARRATIVES = Object.freeze([
+    {
+      count: 1,
+      eyebrow: 'THE FIRST BRANCH',
+      line: '在你们的世界，一件事发生以后，其他可能就只剩下“如果”。在这里，它们没有消失。',
+      title: '《小径分岔的花园》The Garden of Forking Paths',
+      url: 'https://www.penguinrandomhouse.com/books/224704/ficciones--fictions-by-jorge-luis-borges/9780307950925/'
+    },
+    {
+      count: 2,
+      eyebrow: 'A SHARED PAST',
+      line: '这不是复制。它们共享同一段过去，从此拥有不同的未来。',
+      title: '《焦虑是自由引起的眩晕》Anxiety Is the Dizziness of Freedom',
+      url: 'https://www.penguinrandomhouse.com/books/538034/exhalation-by-ted-chiang/9781101947906'
+    },
+    {
+      count: 3,
+      eyebrow: 'BEYOND YOUR VIEW',
+      line: '从你所在的维度，它们彼此分开。从更高处看，它们也许从未分离。',
+      title: '《平面国》Flatland',
+      url: 'https://www.gutenberg.org/files/97/97-h/97-h.htm'
+    },
+    {
+      count: 5,
+      eyebrow: 'THE LIFE NOT TAKEN',
+      line: '你把它们叫作“可能”，是因为你只能身处其中一种。对它们而言，每一种都正在发生。',
+      title: '《暗物质》Dark Matter',
+      url: 'https://www.penguinrandomhouse.com/books/253400/dark-matter-by-blake-crouch/9781101904244/readers-guide/'
+    },
+    {
+      count: 8,
+      eyebrow: 'WHAT REMAINS YOURS',
+      line: '如果每一种可能中的你都真实存在——此刻的你，准备怎样继续？',
+      title: '《瞬息全宇宙》Everything Everywhere All at Once',
+      url: 'https://a24films.com/films/everything-everywhere-all-at-once/'
+    }
+  ]);
+  let narrativeTimer = 0;
 
   const VERTEX_SHADER = `
     precision highp float;
@@ -353,7 +403,23 @@
   }
 
   function compactRealities() { const active = realities.filter(item => item.state === 'active' && item.id !== 1);if (active.length <= 15) return;const protectedIds = new Set([attentionEye?.id, ...realities.slice(-6).map(item => item.id), ...rituals.flatMap(item => [item.parent?.id, item.child?.id])]);const archive = active.sort((a, b) => a.createdAt - b.createdAt).find(item => !protectedIds.has(item.id));if (archive) { archive.state = 'archived';archive.opacity = 0;archiveWeight = Math.min(1, archiveWeight + .085); } }
-  function commitRitual(ritual, now) { if (ritual.committed) return;ritual.committed = true;worldCount++;countNode.textContent = String(worldCount).padStart(2, '0');const child = ritual.child;child.state = 'active';child.phase = 0;child.opacity = ritual.target.depthBand === 'near' ? .96 : ritual.target.depthBand === 'mid' ? .82 : .66;child.lookAtCamera(now, 0, 760);attentionEye = child;lastDepthBand = ritual.target.depthBand;lastTarget = ritual.target;status.textContent = `第 ${worldCount} 个新现实已经从页面内部形成。`;setVoiceState('settling', '现实分岔 +1', `现实 ${String(worldCount).padStart(2, '0')} 已回应`, 'HEY · +1');playCue('open', child);compactRealities();resetVoiceSoon(620); }
+  function showNarrative(count) {
+    const narrative = [...NARRATIVES].reverse().find(item => count >= item.count);
+    if (!narrative || !root.dataset.entered) return;
+    clearTimeout(narrativeTimer);
+    worldNarrative.hidden = false;
+    worldNarrative.classList.remove('is-refreshing');
+    void worldNarrative.offsetWidth;
+    narrativeEyebrow.textContent = narrative.eyebrow;
+    narrativeLine.textContent = narrative.line;
+    narrativeSource.innerHTML = `<span>灵感来源 · 相似观点，非作品原句</span><a href="${narrative.url}" target="_blank" rel="noopener noreferrer">${narrative.title}</a>`;
+    worldNarrative.querySelector('.world-narrative__copy').style.animation = 'none';
+    void worldNarrative.offsetWidth;
+    worldNarrative.querySelector('.world-narrative__copy').style.animation = '';
+    if (count >= 5) tracesTrigger.hidden = false;
+  }
+
+  function commitRitual(ritual, now) { if (ritual.committed) return;ritual.committed = true;worldCount++;countNode.textContent = String(worldCount).padStart(2, '0');const child = ritual.child;child.state = 'active';child.phase = 0;child.opacity = ritual.target.depthBand === 'near' ? .96 : ritual.target.depthBand === 'mid' ? .82 : .66;child.lookAtCamera(now, 0, 760);attentionEye = child;lastDepthBand = ritual.target.depthBand;lastTarget = ritual.target;status.textContent = `第 ${worldCount} 个新现实已经从页面内部形成。`;setVoiceState('settling', '现实分岔 +1', `现实 ${String(worldCount).padStart(2, '0')} 已回应`, 'HEY · +1');playCue('open', child);compactRealities();showNarrative(worldCount);resetVoiceSoon(620); }
   function updateRituals(now) { const hadRituals = rituals.length > 0, timeScale = reducedMotion ? 3.4 : 1;for (const ritual of rituals) { const elapsed = (now - ritual.startedAt) * timeScale;ritual.parent.phase = elapsed < TIMING.commit ? Math.sin(Math.PI * clamp(elapsed / TIMING.commit, 0, 1)) * .52 : 0;if (elapsed >= TIMING.locate) createChild(ritual, now);if (ritual.child) { const progress = smooth(clamp((elapsed - TIMING.locate) / (TIMING.commit - TIMING.locate), 0, 1)), child = ritual.child;child.x = lerp(ritual.origin.x, ritual.target.x, progress);child.y = lerp(ritual.origin.y, ritual.target.y, progress);child.z = lerp(ritual.origin.z, ritual.target.z, progress);child.radius = lerp(ritual.origin.radius, ritual.target.radius, progress);child.opacity = lerp(.08, ritual.target.depthBand === 'near' ? .96 : ritual.target.depthBand === 'mid' ? .82 : .66, smooth(clamp((progress - .05) / .78, 0, 1)));child.phase = Math.sin(Math.PI * progress) * .72; }if (elapsed >= TIMING.commit) commitRitual(ritual, now);if (elapsed >= TIMING.settled) { ritual.parent.phase = 0;ritual.done = true; } }for (let index = rituals.length - 1; index >= 0; index--) if (rituals[index].done) rituals.splice(index, 1);root.dataset.process = rituals.length ? 'branch' : 'idle';if (hadRituals && !rituals.length) resetVoiceSoon(160);if (queue.length) scheduleRitualPump(); }
 
   function analyzeHey(text) { const value = text.toLowerCase().replace(/[.,!?;:。，！？]/g, ' '), hard = value.match(/\b(?:h+e+y+|hei+|hai+|hay+)\b/g) || [], chinese = value.match(/[嗨嘿]/g) || [], soft = value.match(/\bhi+\b/g) || [];return { hard: hard.length + chinese.length, soft: soft.length }; }
@@ -380,6 +446,24 @@
   function loadImage(src) { return new Promise((resolve, reject) => { const image = new Image();image.decoding = 'async';image.onload = () => resolve(image);image.onerror = reject;image.src = src; }); }
 
   listenButton.addEventListener('click', () => { if (manualFallback) { receiveHey('manual', 'hey');return; }if (listeningWanted) stopMicrophone();else startMicrophone(); });
+  function openChapter(focusVoice = true) {
+    root.dataset.entered = 'true';
+    chapterIdentity.setAttribute('aria-hidden', 'false');
+    chapterIntro.classList.add('is-leaving');
+    setTimeout(() => { chapterIntro.hidden = true;if (focusVoice) listenButton.focus({ preventScroll: true }); }, 920);
+  }
+  enterChapter.addEventListener('click', () => openChapter());
+  function setTraces(open) {
+    root.dataset.traces = open ? 'open' : 'closed';
+    tracesTrigger.setAttribute('aria-expanded', String(open));
+    tracesDrawer.setAttribute('aria-hidden', String(!open));
+    if (open) closeTraces.focus({ preventScroll: true });
+    else tracesTrigger.focus({ preventScroll: true });
+  }
+  tracesTrigger.addEventListener('click', () => setTraces(true));
+  closeTraces.addEventListener('click', () => setTraces(false));
+  tracesBackdrop.addEventListener('click', () => setTraces(false));
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && root.dataset.traces === 'open') setTraces(false); });
   soundButton.addEventListener('click', () => { ensureAudio();soundOn = !soundOn;soundButton.setAttribute('aria-pressed', String(soundOn));soundButton.setAttribute('aria-label', soundOn ? '关闭声音' : '开启声音');soundIcon.src = soundOn ? 'assets/tabler-volume.svg' : 'assets/tabler-volume-off.svg';if (audio) audio.master.gain.setTargetAtTime(soundOn ? .14 : 0, audio.ctx.currentTime, .08); });
   root.addEventListener('pointermove', event => { pointer.x = event.clientX;pointer.y = event.clientY;root.dataset.input = event.pointerType === 'touch' ? 'touch' : 'pointer';updateAttention(); });
   addEventListener('resize', resize);document.addEventListener('visibilitychange', () => { if (document.hidden) stopMicrophone(); });root.dataset.density = 'folded';resize();
@@ -387,9 +471,12 @@
   Promise.all([loadImage('assets/eye-orb-source-cutout.png'), loadImage('assets/eye-multiverse-corridor-v1.png')]).then(([eyeImage, environmentImage]) => { visualEyeImage = eyeImage;try { initializeWebGL(eyeImage, environmentImage);resize(); }catch (error) { console.error(error);setVoiceState('fallback', '视觉渲染暂时不可用', '请更新浏览器'); } }).catch(error => { console.error(error);setVoiceState('fallback', '视觉素材加载失败', '请刷新页面'); });
   requestAnimationFrame(frame);
   const qaDemo = query.get('demo'), qaDelay = Math.max(0, Number(query.get('demoDelay')) || 620);
+  if (query.get('demoEnter') === '1') openChapter(false);
   if (qaDemo === 'hey') setTimeout(() => receiveHey('test', 'hey'), qaDelay);
   if (qaDemo === 'triple') setTimeout(() => { for (let index = 0; index < 3; index++) setTimeout(() => receiveHey('test', 'hey'), index * 90); }, qaDelay);
   if (qaDemo === 'density') setTimeout(() => { for (let index = 0; index < 12; index++) setTimeout(() => receiveHey('test', 'hey'), index * 52); }, qaDelay);
+  if (query.has('demoCopy')) setTimeout(() => { const count = Math.max(1, Number(query.get('demoCopy')) || 1);worldCount = count;countNode.textContent = String(worldCount).padStart(2, '0');showNarrative(worldCount); }, qaDelay);
+  if (query.get('demoTraces') === '1') setTimeout(() => { tracesTrigger.hidden = false;setTraces(true); }, qaDelay + 1800);
 
   window.eyeMultiverse = Object.freeze({
     sayHey: (count = 1) => { for (let index = 0; index < count; index++) setTimeout(() => receiveHey('test', 'hey'), index * 70); },
