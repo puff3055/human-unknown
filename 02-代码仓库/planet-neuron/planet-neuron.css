@@ -68,6 +68,17 @@ button { font: inherit; }
 
 .world__identity span + span { color: rgba(206, 190, 169, 0.28); }
 
+.world__identity .world__depth {
+  padding-left: 18px;
+  border-left: 1px solid rgba(211, 194, 171, 0.12);
+  color: rgba(190, 159, 211, 0.34);
+  font-variant-numeric: tabular-nums;
+  transition: color 500ms ease;
+}
+
+.world[data-phase="diving"] .world__depth,
+.world[data-phase="exploring"] .world__depth { color: rgba(209, 180, 229, 0.68); }
+
 .sound {
   position: absolute;
   z-index: 4;
@@ -126,7 +137,7 @@ button { font: inherit; }
   left: 50%;
   bottom: 35px;
   width: min(860px, 78vw);
-  height: 78px;
+  height: 86px;
   transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
@@ -184,32 +195,14 @@ button { font: inherit; }
 
 .world__reveal {
   font-size: clamp(14px, 1.02vw, 17px);
-  letter-spacing: 0.13em;
+  letter-spacing: 0.16em;
 }
 
-.world__progress {
-  position: absolute;
-  width: 72px;
-  height: 1px;
-  left: 50%;
-  bottom: 1px;
-  overflow: hidden;
-  transform: translateX(-50%);
-  background: rgba(231, 219, 200, 0.1);
-  opacity: 0;
-  transition: opacity 300ms ease;
-}
+.world__reveal.is-visible + .world__prompt,
+.world[data-phase="diving"] .world__copy { opacity: .92; }
 
-.world__progress.is-visible { opacity: 1; }
-
-.world__progress i {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform: scaleX(0);
-  transform-origin: left;
-  background: rgba(235, 211, 179, 0.76);
-}
+.world[data-phase="compressing"] .world__canvas { cursor: wait; }
+.world[data-phase="diving"] .world__canvas { cursor: zoom-in; }
 
 .world__loader {
   position: absolute;

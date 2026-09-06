@@ -1,70 +1,62 @@
-# Planet Neuron Design QA
+# Planet Neuron Recursive Scale — Design QA
 
-- Original art direction: `../../00-项目参考材料/尺度世界-行星神经元/行星其实是神经元-概念图-v1.png`
-- Selected visual target: `assets/network-master-v4.png`
-- ImageGen working output: `/Users/kongxueli/.codex/generated_images/01a073f9-0077-7fc3-b39c-17049338a1be/exec-095f1a86-f001-4aeb-b87b-a1416c65a1bc.png`
+- Approved recursive visual: `/Users/kongxueli/.codex/generated_images/01a073f9-0077-7fc3-b39c-17049338a1be/exec-9be10d7d-0bce-435e-a146-04970d718409.png`
+- Runtime master: `assets/recursive-master-v1.png`
+- Runtime masks: `assets/recursive-activity-v1.png`, `assets/recursive-depth-v1.png`
 - Implementation URL: `http://127.0.0.1:4183/planet-neuron/`
-- Implementation screenshots: `qa/final-v4-idle-1280x720.jpg`, `qa/final-v4-hover-1280x720.jpg`, `qa/final-v4-signal-1280x720.jpg`, `qa/final-v4-remote-1280x720.jpg`, `qa/final-v4-revealed-1280x720.jpg`
-- Combined comparison: `qa/final-v4-source-vs-revealed.jpg`
-- Browser viewport: 1280 × 720 CSS px at device scale factor 2
-- WebGL canvas: 2560 × 1440 physical pixels
-- Selected master and runtime masks: 3344 × 1882
-- States checked: idle life, mouse sensing/dwell, surface conduction, two-way network transmission, remote burst/annihilation, camera retreat, stable revealed state, sound off/on.
+- Browser viewport: 1280 × 720 CSS px; WebGL canvas: 2560 × 1440 physical px
+- Runtime textures: 3344 × 1882
+- Combined comparison: `qa/recursive-source-vs-implementation.jpg`
+- State captures: `qa/recursive-idle-1280x720.jpg`, `qa/recursive-hover-1280x720.jpg`, `qa/recursive-click-1280x720.jpg`, `qa/recursive-signal-1280x720.jpg`, `qa/recursive-mid-dive-1280x720.jpg`, `qa/recursive-level-02-1280x720.jpg`
 
-## Full-view comparison evidence
+## Visual comparison
 
-`qa/final-v4-source-vs-revealed.jpg` places the selected visual master and final browser state in equal 16:9 columns. The implementation keeps the same source composition and continuous material: the central sphere, its tapered roots, the surrounding giant fibers, and the distant sibling spheres remain one image substrate throughout. The only full-frame transform is a continuous camera retreat from 1.48× to 1×; there is no image swap or crossfade.
+`qa/recursive-source-vs-implementation.jpg` places the approved recursive master and the browser idle state in the same 16:9 comparison. The implementation keeps the parent-scale arcs, central planet-neuron, child node, smaller continuation, and shared violet conduit. The browser crop is intentionally 1.16× closer so the first read is “planet”, while the connected children remain visible enough to foreshadow recursion.
 
-## Focused-state evidence
+The sphere and all fibers are sampled from one master substrate. Activity and depth maps were derived from the same pixels, so hover, parallax, signals, bursts, and annihilations do not create a detached cutout or sticker edge.
 
-- `qa/final-v4-idle-1280x720.jpg`: the close opening makes the central body readable as a dark planet while its roots remain visible at the rim. Autonomous conduction is sparse and irregular.
-- `qa/final-v4-hover-1280x720.jpg`: the actual local activity texture gathers toward the cursor, the contact point compresses, and the instruction changes to `它在回应。停住。`.
-- `qa/final-v4-signal-1280x720.jpg`: the signal lights source-derived surface filaments rather than drawing a detached line.
-- `qa/final-v4-remote-1280x720.jpg`: the same signal leaves the central sphere through existing roots, reaches the right sibling as a burst, and darkens the left sibling as an annihilation event.
-- `qa/final-v4-revealed-1280x720.jpg`: four subordinate spherical nodes are visible in the same network, and the final sentence remains readable without covering the central connection.
+## Interaction verification
 
-## Required fidelity surfaces
+- **Idle:** sparse, irregular conduction and localized burst/collapse events continue without input; there is no uniform breathing loop or generic particle field.
+- **Pointer:** moving over a living node warps and lights the real nearby network texture. Moving over empty space does not trigger the same response.
+- **Click:** a click on any planet-like node immediately compresses the local field, creates a bright burst, releases one signal along the existing conduit, then licenses the camera dive.
+- **Scale:** wheel/two-finger scroll continuously changes Z depth in either direction. The camera transform travels from the current hero node toward its child.
+- **Recursion:** near the end of each depth cycle, the child region is remapped to the same high-resolution hero structure. Crossing the scale boundary returns to an aligned, visually identical node instead of swapping to another scene. Two consecutive click-driven cycles were verified (`SCALE 01 → 02 → 03`).
+- **Copy:** opening: `你以为那是一颗行星。`; first recursive boundary: `靠近，没有使它变小。`; second boundary: `尺度改变了。它没有。` The prompt explicitly teaches scroll and click.
+- **Sound:** OFF → ON was verified. Pointer energy changes the filtered texture; clicking adds an impact and moving transmission; scale motion changes spectral energy; crossing a boundary folds the tone from high to low instead of playing a repeated notification sound.
 
-- **Continuity:** central sphere, roots, remote nodes, and fiber field are sampled from one visual master plus activity/depth maps derived from that same master. There is no separate circular cutout edge or independent fiber plate.
-- **Depth:** a depth map drives subtle pointer parallax while the camera performs one slow Z-axis retreat. Foreground roots, distant nodes, smoke, and negative spaces preserve scale without a scene cut.
-- **Life rhythm:** the page always has low-amplitude conduction. Ambient events use uneven scheduling and alternate between bloom, collapse, darkness, and recovery; they are localized to the existing substrate instead of being a generic particle layer.
-- **Mouse causality:** moving across the central sphere gathers nearby filaments; resting for about one second closes the ring and starts a single network transmission. No click or repeated collection is required.
-- **Copy:** the opening premise is `你以为那是一颗行星。`; the instruction explicitly teaches movement and then dwelling; the final line is `直到它把你的触碰传向下一颗——你刚刚参与的，也许只是一次念头。`. The answer is withheld until the scale reveal.
-- **Sound:** optional Web Audio adds a quiet substrate, contact filtering, a moving transmission tone, camera-retreat resonance, and spatially separated remote responses. Sound is user-enabled from the visible top-right control.
-- **Sharpness:** all three runtime textures are 3344 × 1882 and the tested WebGL canvas is rendered at 2× display density. Final screenshots retain fine branching detail without enlarging the original 1672 × 941 raster directly.
-- **Scope:** desktop browser and mouse only, as approved. Mobile, touch, keyboard equivalence, reduced motion, legacy-browser support, and a non-WebGL fallback were not added or reviewed.
+## Findings and fixes
 
-## Comparison history
+### P1 — prior page ended after one reveal
 
-### Integrated substrate
+- **Finding:** the previous implementation revealed a wider network once, but did not let the user continue through micro/macro scales.
+- **Fix:** replaced the fixed reveal state with an unbounded logical depth, reversible wheel navigation, and a click-driven one-level dive. The same node hierarchy can repeat across multiple levels.
+- **Evidence:** `qa/recursive-level-02-1280x720.jpg` plus browser verification through `SCALE 03`.
 
-- **Prior P1 — sphere and threads read as separate masks, and the reveal showed only one node.**
-- **Fix:** replaced the independently composited v3 plates with one generated high-resolution network master containing the central sphere, seamless tapered roots, shared branching material, nebula depth, and four distant sibling nodes. Activity and depth masks are derived from the same pixels.
-- **Post-fix evidence:** `qa/final-v4-idle-1280x720.jpg` and `qa/final-v4-revealed-1280x720.jpg`.
+### P1 — fixed image could still read as a presentation slide
 
-### Interaction and narrative completion
+- **Finding:** a static full-frame visual did not demonstrate that the sphere and fibers share one living material.
+- **Fix:** added source-masked local gathering, depth-dependent parallax, irregular conduction, localized burst/annihilation, moving signal transmission, and continuous Z motion to the child node.
+- **Evidence:** hover, click, signal, and mid-dive captures listed above.
 
-- **Prior P1 — `你以为那是一颗行星。` could read like the ending, and the mouse action was not discoverable.**
-- **Fix:** added the initial instruction `移动鼠标，寻找会回应你的纹路。`, the hover/dwell confirmation `它在回应。停住。`, a visible dwell trace, transmission status, and the complete reveal sentence.
-- **Post-fix evidence:** `qa/final-v4-idle-1280x720.jpg`, `qa/final-v4-hover-1280x720.jpg`, and `qa/final-v4-revealed-1280x720.jpg`.
+### P2 — recursive transition could expose the lower-resolution child
 
-### Signal refinement
+- **Finding:** enlarging the painted child alone becomes soft near the cycle boundary.
+- **Fix:** during the final 30% of the continuous camera move, the child coordinates are progressively replaced with an exactly aligned sample of the 2× hero master; a source-masked seam glow hides the substitution without a full-frame crossfade.
+- **Evidence:** final `SCALE 02` state is as sharp as the initial state; no visible frame cut was found.
 
-- **First v4 P2 — a geometric vector corridor briefly read as a laser over the image.**
-- **Fix:** retained the route timing but multiplied it by the source-derived activity texture so only real fibers illuminate; arrival responses now occur on two distant nodes.
-- **Post-fix evidence:** `qa/final-v4-signal-1280x720.jpg` and `qa/final-v4-remote-1280x720.jpg`.
+## Browser and code verification
 
-## Browser verification
+- All three recursive runtime assets returned HTTP 200.
+- Idle, hover, click compression, signal propagation, mid-dive, first boundary, second boundary, free inward scroll, free outward scroll, and sound OFF → ON were exercised in the in-app browser.
+- Browser console: zero warnings, zero errors.
+- JavaScript syntax and `git diff --check`: passed.
+- Scope remains desktop browser and mouse/trackpad only. No mobile, touch, keyboard, reduced-motion, legacy-browser, low-performance, or no-WebGL path was added.
 
-- Loaded all three runtime textures with HTTP 200 responses.
-- Verified 1280 × 720 CSS viewport with a 2560 × 1440 WebGL canvas.
-- Verified idle, mouse movement, one-second dwell, signal propagation, remote response, camera retreat, stable reveal, re-trigger, and sound OFF → ON.
-- Browser console checked with zero warnings and zero errors.
-- JavaScript syntax checks and `git diff --check` passed.
+## Final result
 
-## Findings
+No remaining P0, P1, or P2 finding.
 
-- No remaining P0, P1, or P2 finding.
-- P3: sound balance remains subjective and should be checked on the presentation speakers or headphones.
+P3: sound balance should still be checked once on the actual presentation speakers or headphones.
 
 final result: passed

@@ -195,6 +195,38 @@
       oscillator.stop(now + 1.1);
     }
 
+    setScaleMotion(energy, direction = 1) {
+      if (!this.context || !this.enabled) return;
+      const now = this.context.currentTime;
+      const amount = Math.max(0, Math.min(1, energy));
+      this.contactGain.gain.setTargetAtTime(0.014 + amount * 0.052, now, 0.18);
+      this.contactFilter.frequency.setTargetAtTime(
+        direction >= 0 ? 180 + amount * 520 : 520 - amount * 330,
+        now,
+        0.22
+      );
+    }
+
+    scaleCrossing(direction = 1) {
+      if (!this.context || !this.enabled) return;
+      const now = this.context.currentTime;
+      const oscillator = this.context.createOscillator();
+      const filter = this.context.createBiquadFilter();
+      const gain = this.context.createGain();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(direction >= 0 ? 82 : 51, now);
+      oscillator.frequency.exponentialRampToValueAtTime(direction >= 0 ? 31 : 96, now + 1.15);
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(240, now);
+      filter.frequency.exponentialRampToValueAtTime(68, now + 1.2);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
+      oscillator.connect(filter).connect(gain).connect(this.compressor);
+      oscillator.start(now);
+      oscillator.stop(now + 1.3);
+    }
+
     async setVisible(visible) {
       if (!this.context || !this.enabled) return;
       if (visible) await this.context.resume();
