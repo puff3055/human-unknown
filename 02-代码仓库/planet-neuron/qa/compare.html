@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planet Neuron Visual Comparison</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: #090b0d; color: #d9d7d2; font: 12px/1.4 system-ui, sans-serif; }
+      main { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-height: 100vh; align-content: center; }
+      figure { margin: 0; position: relative; }
+      img { display: block; width: 100%; height: auto; }
+      figcaption { position: absolute; top: 12px; left: 12px; padding: 5px 8px; background: rgba(0,0,0,.7); letter-spacing: .12em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <figure>
+        <img src="../assets/source.png" alt="用户提供的概念图" />
+        <figcaption>SOURCE</figcaption>
+      </figure>
+      <figure>
+        <img src="./implementation-revealed.png" alt="尺度揭示后的网页画面" />
+        <figcaption>IMPLEMENTATION · REVEALED</figcaption>
+      </figure>
+    </main>
+  </body>
+</html>

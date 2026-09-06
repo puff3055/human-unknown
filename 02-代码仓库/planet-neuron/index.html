@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#020405" />
+    <title>SCALE UNKNOWN | HUMAN UNKNOWN</title>
+    <link rel="stylesheet" href="./planet-neuron.css" />
+  </head>
+  <body>
+    <main class="world" data-world data-phase="loading" aria-label="尺度的未知：行星神经元互动世界">
+      <canvas class="world__canvas" data-canvas aria-hidden="true"></canvas>
+
+      <header class="world__identity" aria-label="HUMAN UNKNOWN 尺度世界">
+        <span>HUMAN UNKNOWN</span>
+        <span>SCALE UNKNOWN</span>
+      </header>
+
+      <button class="sound" type="button" data-sound aria-pressed="false">
+        <span class="sound__signal" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span data-sound-label>SOUND OFF</span>
+      </button>
+
+      <section class="world__copy" aria-live="polite">
+        <p class="world__prompt" data-prompt>靠近。停留片刻。</p>
+        <p class="world__reveal" data-reveal>你以为那是一颗行星。</p>
+        <div class="world__progress" data-progress-wrap aria-hidden="true">
+          <i data-progress></i>
+        </div>
+      </section>
+
+      <div class="world__loader" data-loader aria-hidden="true"><i></i></div>
+      <p class="world__status" role="status" data-status>正在唤醒这个世界。</p>
+    </main>
+
+    <script src="./planet-neuron-renderer.js"></script>
+    <script src="./planet-neuron-sound.js"></script>
+    <script src="./planet-neuron.js"></script>
+  </body>
+</html>

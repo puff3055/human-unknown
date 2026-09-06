@@ -1,0 +1,226 @@
+:root {
+  color: rgba(238, 235, 229, 0.9);
+  background: #020405;
+  font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #020405;
+}
+
+body { cursor: crosshair; }
+button { font: inherit; }
+
+.world {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 960px;
+  min-height: 600px;
+  isolation: isolate;
+  overflow: hidden;
+  background: #020405;
+}
+
+.world__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.world[data-phase]:not([data-phase="loading"]) .world__canvas { opacity: 1; }
+
+.world::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 13vw 4vw rgba(0, 0, 0, 0.46);
+}
+
+.world__identity {
+  position: absolute;
+  z-index: 3;
+  top: 29px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  color: rgba(234, 230, 222, 0.48);
+  pointer-events: none;
+}
+
+.world__identity span + span { color: rgba(206, 190, 169, 0.28); }
+
+.sound {
+  position: absolute;
+  z-index: 4;
+  top: 20px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  color: rgba(230, 225, 216, 0.44);
+  background: transparent;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  transition: color 240ms ease;
+}
+
+.sound:hover,
+.sound[aria-pressed="true"] { color: rgba(236, 228, 216, 0.8); }
+
+.sound__signal {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 9px;
+}
+
+.sound__signal i {
+  width: 1px;
+  height: 3px;
+  background: currentColor;
+}
+
+.sound__signal i:nth-child(2) { height: 8px; }
+.sound__signal i:nth-child(3) { height: 5px; }
+
+.sound[aria-pressed="true"] .sound__signal i {
+  animation: sound-life 1.35s steps(4, end) infinite alternate;
+}
+
+.sound[aria-pressed="true"] .sound__signal i:nth-child(2) { animation-delay: -0.8s; }
+.sound[aria-pressed="true"] .sound__signal i:nth-child(3) { animation-delay: -0.35s; }
+
+@keyframes sound-life {
+  0%, 22% { transform: scaleY(0.45); }
+  48% { transform: scaleY(1); }
+  72%, 100% { transform: scaleY(0.68); }
+}
+
+.world__copy {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 35px;
+  width: min(580px, 70vw);
+  height: 48px;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.world__prompt,
+.world__reveal {
+  position: absolute;
+  inset: 0 0 auto;
+  margin: 0;
+  transform: translateY(8px);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: clamp(13px, 0.95vw, 16px);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.24em;
+  color: transparent;
+  text-shadow: 0 1px 18px rgba(238, 213, 177, 0.16);
+  transition: color 1.2s ease, transform 1.2s ease;
+}
+
+.world__prompt.is-visible,
+.world__reveal.is-visible {
+  color: rgba(239, 233, 221, 0.69);
+  transform: translateY(0);
+}
+
+.world__prompt.is-gone {
+  color: transparent;
+  transform: translateY(-7px);
+}
+
+.world__reveal { font-size: clamp(14px, 1.05vw, 18px); }
+
+.world__progress {
+  position: absolute;
+  width: 42px;
+  height: 1px;
+  left: 50%;
+  bottom: 0;
+  overflow: hidden;
+  transform: translateX(-50%);
+  background: rgba(231, 219, 200, 0.1);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.world__progress.is-visible { opacity: 1; }
+
+.world__progress i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: rgba(235, 211, 179, 0.76);
+}
+
+.world__loader {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 54px;
+  height: 1px;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  background: rgba(222, 214, 202, 0.08);
+  transition: opacity 500ms ease;
+}
+
+.world__loader i {
+  display: block;
+  width: 35%;
+  height: 100%;
+  background: rgba(221, 203, 181, 0.5);
+  animation: load 1.4s ease-in-out infinite;
+}
+
+.world[data-phase]:not([data-phase="loading"]) .world__loader { opacity: 0; }
+
+@keyframes load {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(390%); }
+}
+
+.world__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
