@@ -8,7 +8,7 @@
 ## 1. 当前基线
 
 - 已实现候选范围：**V4.5.3 首页／第一次接触 → 世界 1「THE GREEN BODY／群体生命」→ 世界 2「RECURSIVE COSMOS／递归宇宙」→ 世界 3「EYE MULTIVERSE／多重宇宙」完整桌面旅程**。
-- 当前整合分支：`codex/full-journey-v1`；完整链路代码提交：`d271c2b`；候选标签：`full-journey-v0.1.0-rc.1`（在文档提交完成后建立）。
+- 当前整合分支：`codex/full-journey-v1`；完整链路代码提交：`d271c2b`；候选标签：`full-journey-v0.1.0-rc.1`（已建立并推送）。
 - 各来源版本均保留：共享交互声音 `00bb23f`／`interaction-sound-v0.1.0-rc.1`，植物叙事 `3fac17f`／`green-body-narrative-v0.2.0-rc.1`，行星神经元 `cd0a270`／`planet-neuron-v0.6.0-rc.1`，多重宇宙 `ac4fed6`／`eye-multiverse-v0.9.0-rc.1`。
 - 当前世界 1 叙事候选分支：`codex/green-body-narrative`，候选标签 `green-body-narrative-v0.2.0-rc.1`；上一叙事回退点为 `green-body-narrative-v0.1.0-rc.1`，原首页汇合标签 `home-green-v0.1.0-rc.1` 仍可独立回退。
 - 两个受保护的来源基线：V4.5.3 首页提交 `e894154`／标签 `v4.5.3-rc.1`；世界 1 实时网络提交 `968af59`。汇合没有改写这两个历史点。
@@ -17,7 +17,7 @@
 - `world1-v0.1.0-rc.1` 保留为历史回退点，但其“翻页／PPT 感”、弱动效、交互不清与缩放发糊已被用户否定，不再是验收基线。
 - 上一个首页直接回退点：`v4.5.3-rc.1`（首页与声音，不含世界 1）。
 - 文档事实源分支：`codex/product-source-of-truth-v1`；文档回退标签：`product-source-v1.0.0` 起。
-- 私有开发仓库默认 `main` 暂不作为最新体验判断依据；完整旅程保存在独立整合分支和标签中。公开 GitHub Pages 仓库在最终部署完成后以单独公开标签保留上一版和本版。
+- 私有开发仓库默认 `main` 暂不作为最新体验判断依据；完整旅程保存在独立整合分支和标签中。公开 GitHub Pages 已部署提交 `2e073f6`；上一版与本版分别由 `public-homepage-v4.5.3`、`public-full-journey-v0.1.0-rc.1` 标签保护。
 - 当前黑客松阶段的默认交付端是**桌面网页浏览器**。新世界优先完成鼠标驱动的单页核心互动；手机版、触摸与键盘等价路径、移动响应式、减少动态和低性能降级不在默认范围，只有用户重新明确要求时才加入。已有支持保留，不要求为此返工删除。
 
 ## 2. 首页现状
