@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="HUMAN UNKNOWN — 人类的世界，只是世界的一种解释。">
+  <link rel="icon" href="data:,">
   <title>HUMAN UNKNOWN</title>
   <link rel="preload" as="image" href="assets/home-contact-background.png">
+  <link rel="preload" as="image" href="assets/world1-update-2-background@2x.png">
   <link rel="stylesheet" href="style.css?v=3.4.0-rc.1">
-  <link rel="stylesheet" href="world-one.css?v=world1-0.2.0-rc.1">
+  <link rel="stylesheet" href="green-body-realtime.css?v=green-body-0.1.0">
 </head>
 <body>
   <main class="contact" id="contact" data-phase="waiting" data-life="resting">
@@ -62,101 +64,37 @@
     class="world-one"
     id="worldOne"
     data-active="false"
-    data-scene="1"
-    data-input="pointer"
-    aria-label="CHAPTER 01 / THE COLLECTIVE｜群体生命"
+    data-phase="falling"
+    aria-label="CHAPTER 01 / THE GREEN BODY｜群体生命"
     aria-hidden="true"
     tabindex="-1"
     hidden
   >
-    <div class="world-one__visual" id="worldVisual">
-      <div class="world-one__scene is-current" data-scene-art="1">
-        <img class="world-one__scene-image" src="assets/world1/scene-01.png" alt="" width="1672" height="941" draggable="false">
+    <canvas class="world-one__living" id="greenBodyLivingCanvas" aria-hidden="true"></canvas>
+    <canvas class="world-one__canvas" id="greenBodyCanvas" aria-hidden="true"></canvas>
+    <div class="world-one__vignette" aria-hidden="true"></div>
+    <header class="world-one__chrome">
+      <button id="worldReturn" type="button">HUMAN UNKNOWN</button>
+      <span>PLANT</span>
+    </header>
+    <div class="world-one__copy" id="worldCopy" aria-live="polite">
+      <div class="world-one__beat" data-beat="falling">
+        <p>你正在坠入<br>一具更大的身体……</p>
+        <small>YOU ARE FALLING INTO<br>A LARGER BODY…</small>
       </div>
-      <div class="world-one__scene" data-scene-art="2">
-        <img class="world-one__scene-image" src="assets/world1/scene-02.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
+      <div class="world-one__beat" data-beat="chapter">
+        <small>CHAPTER 01</small>
+        <h2>THE GREEN BODY</h2>
+        <p>群体生命</p>
+        <i></i>
+        <blockquote>“我”一定有明确边界吗？</blockquote>
       </div>
-      <div class="world-one__scene" data-scene-art="3">
-        <img class="world-one__scene-image" src="assets/world1/scene-03.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
-      </div>
-      <div class="world-one__scene" data-scene-art="4">
-        <img class="world-one__scene-image" src="assets/world1/scene-04.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
-      </div>
-      <div class="world-one__scene" data-scene-art="5">
-        <img class="world-one__scene-image" src="assets/world1/scene-05.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
-      </div>
-      <div class="world-one__scene" data-scene-art="6">
-        <img class="world-one__scene-image" src="assets/world1/scene-06.png" alt="" width="1672" height="941" loading="lazy" draggable="false">
-      </div>
-      <canvas class="world-one__signal" id="worldSignalCanvas"></canvas>
-      <div class="world-one__transition" id="worldTransition"></div>
-
-      <div class="world-one__signal-label" id="worldSignalLabel" aria-hidden="true">
-        <span></span>
-        <p>同一束光</p>
-      </div>
-
-    <button
-      class="world-one__brand-action"
-      id="worldHomeHotspot"
-      type="button"
-      aria-label="返回 HUMAN UNKNOWN 入口"
-    ></button>
-
-    <button
-      class="world-one__menu-action"
-      id="worldMenuToggle"
-      type="button"
-      aria-label="打开体验控制"
-      aria-expanded="false"
-      aria-controls="worldControls"
-    ></button>
-
-    <button
-      class="world-one__scene-action"
-      id="worldSceneAction"
-      type="button"
-      aria-label="继续"
-    ></button>
-
-    <div class="world-one__progress" id="worldProgress" aria-hidden="true">
-      <span id="worldProgressCurrent">01</span>
-      <i></i>
-      <span>06</span>
+      <div class="world-one__beat world-one__beat--right" data-beat="here"><p>这里感知到了你。</p><small>THIS PLACE HAS FELT YOU.</small></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="there"><p>那里，<br>也是你。</p><small>THERE,<br>IT IS ALSO YOU.</small></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="final"><p>如果整个生态网络<br>才是意识的尺度呢？</p><small>IF THE ENTIRE ECOLOGICAL NETWORK<br>IS THE TRUE SCALE OF CONSCIOUSNESS?</small><cite>——《Avatar》</cite></div>
     </div>
-
-    <div class="world-one__assist" id="worldAssist">
-      <p class="world-one__assist-kicker" id="worldAssistKicker">CHAPTER 01 / THE COLLECTIVE</p>
-      <p class="world-one__assist-copy" id="worldAssistCopy">滚动、上划或按 ↓ 继续</p>
-      <div class="world-one__interaction-meter" aria-hidden="true"><i id="worldInteractionMeter"></i></div>
-      <button class="world-one__assist-action" id="worldAssistAction" type="button">继续</button>
-    </div>
-
-    <div class="world-one__finish-actions" id="worldFinishActions" aria-label="章节结束">
-      <button id="worldReplay" type="button">再次体验</button>
-      <button id="worldReturn" type="button">返回入口</button>
-    </div>
-
-    <div class="world-one__source-actions" id="worldSourceActions" aria-label="候选灵感来源">
-      <button type="button" data-source="green-planet" aria-label="候选灵感：绿色星球，纪录片"><span>绿色星球</span></button>
-      <button type="button" data-source="semiosis" aria-label="候选灵感：共生 Semiosis，小说"><span>共生 Semiosis</span></button>
-      <button type="button" data-source="vaster-than-empires" aria-label="候选灵感：比帝国辽阔，比帝国缓慢，短篇小说"><span>比帝国辽阔…</span></button>
-    </div>
-    </div>
-
-    <aside class="world-one__controls" id="worldControls" aria-label="体验控制" hidden>
-      <p>CHAPTER 01 / THE COLLECTIVE</p>
-      <button id="worldPause" type="button" aria-pressed="false">暂停动态</button>
-      <button id="worldSound" type="button" aria-pressed="false">开启声音</button>
-      <button id="worldRestart" type="button">从本章开始</button>
-      <button id="worldExit" type="button">返回入口</button>
-    </aside>
-
-    <div class="world-one__paused" id="worldPaused" hidden>
-      <p>体验已暂停</p>
-      <button id="worldResume" type="button">继续</button>
-    </div>
-
+    <div class="world-one__hint" id="worldHint">移动你的感知，看看哪里会注意到你。 <span>MOVE TO EXPLORE</span></div>
+    <div class="world-one__cursor" id="worldCursor" aria-hidden="true"><i></i></div>
     <p class="visually-hidden" id="worldStatus" aria-live="polite" aria-atomic="true"></p>
   </section>
 
@@ -165,6 +103,7 @@
   <script src="living-soundscape.js?v=world1-0.1.0-rc.1"></script>
   <script src="world-one-soundscape.js?v=world1-0.2.0-rc.1"></script>
   <script src="app.js?v=world1-0.2.0-rc.1"></script>
-  <script src="world-one.js?v=world1-0.2.0-rc.1"></script>
+  <script src="green-body-living.js?v=green-body-0.3.0"></script>
+  <script src="green-body-realtime.js?v=green-body-0.3.0"></script>
 </body>
 </html>
