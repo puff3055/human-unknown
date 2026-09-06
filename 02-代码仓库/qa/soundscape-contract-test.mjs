@@ -241,7 +241,7 @@ const state = {
 };
 
 for (let index = 0; index < 8; index += 1) {
-  soundscape.lastControlAt = 0;
+  soundscape.lastControlAt = Number.NEGATIVE_INFINITY;
   soundscape.update(state, 1 / 60);
 }
 const activeState = soundscape.getState();
@@ -260,7 +260,7 @@ assert.ok(Number(toggle.dataset.presenceLevel) < 0.003);
 
 soundscape.duckUntil = 0;
 for (let index = 0; index < 8; index += 1) {
-  soundscape.lastControlAt = 0;
+  soundscape.lastControlAt = Number.NEGATIVE_INFINITY;
   soundscape.update(state, 1 / 60);
 }
 const recoveredPresence = soundscape.getState().telemetry.presence;
@@ -284,7 +284,7 @@ const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8'
 assert.match(html, /id="soundToggle"/);
 assert.match(html, /id="soundPrompt"/);
 assert.match(html, /data-sound-state="armed"/);
-assert.match(html, /living-soundscape\.js\?v=4\.6\.0-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=4\.7\.0-rc\.1/);
 assert.match(html, /assets\/tabler-volume\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');

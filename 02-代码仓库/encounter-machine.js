@@ -2,27 +2,30 @@
   'use strict';
 
   const COPY_SEQUENCE = Object.freeze([
+    '在页面动一动，感受它',
     '它注意到你了',
+    '来中间，进入它的世界',
   ]);
 
   const PHASE_COPY = Object.freeze({
     contact: COPY_SEQUENCE[0],
-    near: COPY_SEQUENCE[0],
-    noticed: COPY_SEQUENCE[0],
-    aligned: COPY_SEQUENCE[0],
+    near: COPY_SEQUENCE[1],
+    noticed: COPY_SEQUENCE[2],
+    aligned: COPY_SEQUENCE[2],
   });
 
   const STANDARD_TIMING = Object.freeze({
     blackoutMs: 520,
     revealMs: 3600,
     titleInMs: 1500,
-    titleMinReadMs: 4000,
-    readyPauseMs: 8000,
-    titleDissolveMs: 2400,
-    guideSwapMs: 1200,
+    titleMinReadMs: 2500,
+    titleHoldMs: 2500,
+    readyPauseMs: 5000,
+    titleDissolveMs: 2000,
+    guideSwapMs: 3000,
     guideEnterMs: 3000,
-    contactReadMs: 1600,
-    nearReadMs: 1600,
+    contactReadMs: 5000,
+    nearReadMs: 5000,
     noticedReadMs: 0,
     alignedReadMs: 1800,
     alignedExitMs: 550,
@@ -41,8 +44,8 @@
     blackoutMs: 180,
     revealMs: 320,
     titleInMs: 120,
-    titleDissolveMs: 80,
-    guideSwapMs: 1200,
+    titleDissolveMs: 2000,
+    guideSwapMs: 3000,
     guideEnterMs: 3000,
     alignedExitMs: 80,
     noticeDwellMs: 160,
@@ -97,6 +100,7 @@
       this.boundarySilence = 0;
       this.fall = 0;
       this.noticeSerial = 0;
+      this.noticeEmitted = false;
       this.lastContactActive = false;
       this.handoff = false;
     }
@@ -127,7 +131,6 @@
           + this.timing.guideEnterMs;
       }
 
-      if (nextPhase === 'noticed') this.noticeSerial += 1;
       if (nextPhase === 'entering') {
         this.entryStartedAt = now;
         this.hold = 1;
@@ -151,33 +154,31 @@
       );
       this.title = smoothstep(revealEndedAt, titleEndedAt, elapsed);
 
-      if (this.phase !== 'opening') {
-        if (this.dissolveStartedAt !== null) {
+      if (elapsed < revealStartedAt) this.intro = 'blackout';
+      else if (elapsed < revealEndedAt) this.intro = 'revealing';
+      else if (elapsed < titleEndedAt) this.intro = 'title-in';
+      else {
+        const dissolveAt = this.titleFullyVisibleAt + this.timing.titleHoldMs;
+        if (now < dissolveAt) {
+          this.intro = 'title-hold';
+        } else {
+          this.dissolveStartedAt = dissolveAt;
           this.titleDissolve = smoothstep(
-            this.dissolveStartedAt,
-            this.dissolveStartedAt + this.timing.titleDissolveMs,
+            dissolveAt,
+            dissolveAt + this.timing.titleDissolveMs,
             now
           );
           this.intro = this.titleDissolve < 1 ? 'dissolving' : 'contact';
         }
-        return;
       }
 
-      if (elapsed < revealStartedAt) this.intro = 'blackout';
-      else if (elapsed < revealEndedAt) this.intro = 'revealing';
-      else if (elapsed < titleEndedAt) this.intro = 'title-in';
-      else this.intro = 'title-hold';
-
       const readyForNarration = now - this.titleFullyVisibleAt >= this.timing.readyPauseMs;
-      if (readyForNarration) {
-        this.dissolveStartedAt = now;
-        this.intro = 'dissolving';
-        this.transition('noticed', now);
+      if (this.phase === 'opening' && readyForNarration) {
+        this.transition('contact', now);
       }
     }
 
     updateContact(now, deltaMs, input) {
-      const outer = Boolean(input.outer);
       const core = Boolean(input.core);
       const active = Boolean(input.active);
       const readableFor = this.guideReadableAt === null
@@ -185,25 +186,19 @@
         : now - this.guideReadableAt;
 
       if (this.phase === 'contact') {
-        if (outer && readableFor >= this.timing.contactReadMs) {
+        if (readableFor >= this.timing.contactReadMs) {
           this.transition('near', now);
         }
         return;
       }
 
       if (this.phase === 'near') {
-        const canDwell = outer && active;
-        this.outerDwell = clamp(
-          this.outerDwell + (canDwell ? deltaMs : -deltaMs * 0.55),
-          0,
-          this.timing.noticeDwellMs
-        );
-        if (
-          canDwell
-          &&
-          readableFor >= this.timing.nearReadMs
-          && this.outerDwell >= this.timing.noticeDwellMs
-        ) {
+        const noticeAt = this.guideReadableAt - this.timing.guideEnterMs;
+        if (!this.noticeEmitted && now >= noticeAt) {
+          this.noticeEmitted = true;
+          this.noticeSerial += 1;
+        }
+        if (readableFor >= this.timing.nearReadMs) {
           this.transition('noticed', now);
         }
         return;

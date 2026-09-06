@@ -150,7 +150,7 @@ assert.equal(reducedElement.style.getPropertyValue('--cursor-trail-y'), '0.00px'
 
 assert.match(htmlSource, /assets\/cursor-light-cloud\.png/);
 assert.match(htmlSource, /assets\/cursor-light-point\.png/);
-assert.match(htmlSource, /light-cursor\.js\?v=4\.6\.0-rc\.1/);
+assert.match(htmlSource, /light-cursor\.js\?v=4\.7\.0-rc\.1/);
 assert.match(
   cssSource,
   /@media \(hover: hover\) and \(pointer: fine\)[\s\S]*body \*[\s\S]*cursor: none !important/,
