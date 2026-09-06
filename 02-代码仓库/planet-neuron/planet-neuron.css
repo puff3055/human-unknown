@@ -125,21 +125,21 @@ button { font: inherit; }
   z-index: 3;
   left: 50%;
   bottom: 35px;
-  width: min(580px, 70vw);
-  height: 48px;
+  width: min(860px, 78vw);
+  height: 78px;
   transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
 }
 
-.world__prompt,
+.world__premise,
 .world__reveal {
   position: absolute;
   inset: 0 0 auto;
   margin: 0;
   transform: translateY(8px);
   font-family: "Songti SC", "STSong", serif;
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: clamp(14px, 1vw, 17px);
   font-weight: 400;
   line-height: 1.6;
   letter-spacing: 0.24em;
@@ -148,25 +148,51 @@ button { font: inherit; }
   transition: color 1.2s ease, transform 1.2s ease;
 }
 
-.world__prompt.is-visible,
+.world__premise.is-visible,
 .world__reveal.is-visible {
   color: rgba(239, 233, 221, 0.69);
   transform: translateY(0);
 }
 
-.world__prompt.is-gone {
+.world__premise.is-gone {
   color: transparent;
   transform: translateY(-7px);
 }
 
-.world__reveal { font-size: clamp(14px, 1.05vw, 18px); }
+.world__prompt {
+  position: absolute;
+  inset: 31px 0 auto;
+  margin: 0;
+  transform: translateY(5px);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.18em;
+  color: transparent;
+  transition: color 650ms ease, transform 650ms ease;
+}
+
+.world__prompt.is-visible {
+  color: rgba(231, 224, 212, 0.53);
+  transform: translateY(0);
+}
+
+.world__prompt.is-gone {
+  color: transparent;
+  transform: translateY(-5px);
+}
+
+.world__reveal {
+  font-size: clamp(14px, 1.02vw, 17px);
+  letter-spacing: 0.13em;
+}
 
 .world__progress {
   position: absolute;
-  width: 42px;
+  width: 72px;
   height: 1px;
   left: 50%;
-  bottom: 0;
+  bottom: 1px;
   overflow: hidden;
   transform: translateX(-50%);
   background: rgba(231, 219, 200, 0.1);

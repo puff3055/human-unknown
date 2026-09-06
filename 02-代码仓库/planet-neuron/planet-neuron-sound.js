@@ -97,15 +97,15 @@
       const panner = this.context.createStereoPanner();
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(142, now + 0.15);
-      oscillator.frequency.exponentialRampToValueAtTime(46, now + 3.2);
+      oscillator.frequency.exponentialRampToValueAtTime(42, now + 4.55);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.exponentialRampToValueAtTime(0.09, now + 0.2);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.3);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.65);
       panner.pan.setValueAtTime(-0.15, now);
-      panner.pan.linearRampToValueAtTime(0.82, now + 3.2);
+      panner.pan.linearRampToValueAtTime(0.82, now + 4.55);
       oscillator.connect(gain).connect(panner).connect(this.compressor);
       oscillator.start(now);
-      oscillator.stop(now + 3.4);
+      oscillator.stop(now + 4.75);
     }
 
     createImpact(now) {
@@ -139,6 +139,42 @@
       oscillator.connect(filter).connect(gain).connect(this.compressor);
       oscillator.start(now);
       oscillator.stop(now + 5.1);
+    }
+
+    remoteResponse(kind, pan) {
+      if (!this.context || !this.enabled) return;
+      const now = this.context.currentTime;
+      const oscillator = this.context.createOscillator();
+      const overtone = this.context.createOscillator();
+      const filter = this.context.createBiquadFilter();
+      const gain = this.context.createGain();
+      const overtoneGain = this.context.createGain();
+      const panner = this.context.createStereoPanner();
+
+      const isBurst = kind === "burst";
+      oscillator.type = isBurst ? "triangle" : "sine";
+      overtone.type = "sine";
+      oscillator.frequency.setValueAtTime(isBurst ? 118 : 54, now);
+      oscillator.frequency.exponentialRampToValueAtTime(isBurst ? 39 : 27, now + 1.45);
+      overtone.frequency.setValueAtTime(isBurst ? 236 : 81, now);
+      overtone.frequency.exponentialRampToValueAtTime(isBurst ? 63 : 34, now + 1.1);
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(isBurst ? 420 : 150, now);
+      filter.frequency.exponentialRampToValueAtTime(74, now + 1.5);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(isBurst ? 0.075 : 0.04, now + 0.055);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.55);
+      overtoneGain.gain.setValueAtTime(0.0001, now);
+      overtoneGain.gain.exponentialRampToValueAtTime(isBurst ? 0.018 : 0.009, now + 0.04);
+      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
+      panner.pan.value = Math.max(-0.9, Math.min(0.9, pan));
+      oscillator.connect(filter);
+      overtone.connect(overtoneGain).connect(filter);
+      filter.connect(gain).connect(panner).connect(this.compressor);
+      oscillator.start(now);
+      overtone.start(now);
+      oscillator.stop(now + 1.6);
+      overtone.stop(now + 1.1);
     }
 
     ambientEvent(kind, x) {

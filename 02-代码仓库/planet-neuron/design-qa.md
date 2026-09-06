@@ -1,77 +1,70 @@
 # Planet Neuron Design QA
 
-- Source visual truth: `../../00-项目参考材料/尺度世界-行星神经元/行星其实是神经元-概念图-v1.png`
+- Original art direction: `../../00-项目参考材料/尺度世界-行星神经元/行星其实是神经元-概念图-v1.png`
+- Selected visual target: `assets/network-master-v4.png`
+- ImageGen working output: `/Users/kongxueli/.codex/generated_images/01a073f9-0077-7fc3-b39c-17049338a1be/exec-095f1a86-f001-4aeb-b87b-a1416c65a1bc.png`
 - Implementation URL: `http://127.0.0.1:4183/planet-neuron/`
-- Implementation screenshots: `qa/final-idle-1280x720.jpg`, `qa/final-hover-1280x720.jpg`, `qa/final-signal-1280x720.jpg`, `qa/final-revealed-1280x720.jpg`
-- Combined comparison: `qa/final-source-vs-revealed.jpg`
-- Layer evidence: `qa/layer-contact-sheet-v3.jpg`
+- Implementation screenshots: `qa/final-v4-idle-1280x720.jpg`, `qa/final-v4-hover-1280x720.jpg`, `qa/final-v4-signal-1280x720.jpg`, `qa/final-v4-remote-1280x720.jpg`, `qa/final-v4-revealed-1280x720.jpg`
+- Combined comparison: `qa/final-v4-source-vs-revealed.jpg`
 - Browser viewport: 1280 × 720 CSS px at device scale factor 2
 - WebGL canvas: 2560 × 1440 physical pixels
-- Source pixels: 1672 × 941
-- Runtime textures: background/fibers 3344 × 1882; planet/surface/masks 2048 × 2048
-- Density normalization: the combined comparison displays both source and implementation in equal 16:9 columns; the implementation is captured at its CSS viewport and rendered internally at 2× density.
-- States checked: idle life, mouse sensing/dwell, boundary-crossing signal, continuous camera retreat, stable revealed state, sound off/on.
+- Selected master and runtime masks: 3344 × 1882
+- States checked: idle life, mouse sensing/dwell, surface conduction, two-way network transmission, remote burst/annihilation, camera retreat, stable revealed state, sound off/on.
 
 ## Full-view comparison evidence
 
-`qa/final-source-vs-revealed.jpg` places the supplied concept and the final revealed state in one browser capture. The implementation preserves the source's near-black palette, central spherical subject, warm branching surface network, violet conduction route, surrounding giant fibers, quiet negative space, and non-anatomical tone. The revealed sphere is intentionally smaller than in the source so the scale reversal is legible; the left-side source signal is intentionally withheld so the single user-triggered rightward signal remains the only causal event.
+`qa/final-v4-source-vs-revealed.jpg` places the selected visual master and final browser state in equal 16:9 columns. The implementation keeps the same source composition and continuous material: the central sphere, its tapered roots, the surrounding giant fibers, and the distant sibling spheres remain one image substrate throughout. The only full-frame transform is a continuous camera retreat from 1.48× to 1×; there is no image swap or crossfade.
 
-## Focused-region comparison evidence
+## Focused-state evidence
 
-`qa/layer-contact-sheet-v3.jpg` inspects the generated planet, emissive surface, and separated fiber layers against black, white, and checker backgrounds. The sphere has a real alpha edge without a rectangular plate, gray matte, or colored halo. `qa/final-hover-1280x720.jpg` confirms that the cursor response remains attached to the source-derived surface network rather than appearing as an unrelated circular effect.
+- `qa/final-v4-idle-1280x720.jpg`: the close opening makes the central body readable as a dark planet while its roots remain visible at the rim. Autonomous conduction is sparse and irregular.
+- `qa/final-v4-hover-1280x720.jpg`: the actual local activity texture gathers toward the cursor, the contact point compresses, and the instruction changes to `它在回应。停住。`.
+- `qa/final-v4-signal-1280x720.jpg`: the signal lights source-derived surface filaments rather than drawing a detached line.
+- `qa/final-v4-remote-1280x720.jpg`: the same signal leaves the central sphere through existing roots, reaches the right sibling as a burst, and darkens the left sibling as an annihilation event.
+- `qa/final-v4-revealed-1280x720.jpg`: four subordinate spherical nodes are visible in the same network, and the final sentence remains readable without covering the central connection.
 
 ## Required fidelity surfaces
 
-- **Fonts and typography:** The source has no typography. Added identity, sound control, instruction, and reveal line use Helvetica/PingFang for utility text and Songti/STSong for the two narrative lines. Small optical weights, wide tracking, and low contrast keep them outside the main visual hierarchy; no wrapping or truncation occurs at the tested desktop viewport.
-- **Spacing and layout rhythm:** The sphere remains centered with clear negative space around its silhouette. Utility UI stays inside 24–35 px edge margins; narrative copy is centered 35 px from the bottom and does not overlap the sphere.
-- **Colors and visual tokens:** Near-black, charcoal, muted amber, and violet remain aligned with the source. Pointer and signal states reuse those colors instead of introducing generic neon particles or interface chrome.
-- **Image quality and asset fidelity:** The supplied image remains the art-direction reference, while the runtime uses a true clean background plate plus independent 2K planet and surface layers. Far, middle, near, planet, activity, and depth textures are separately sampled. The browser renders at 2× density; no full-frame source raster is enlarged behind the interaction. The final captures show crisp cracks, a clean circular edge, separated depth planes, and no pasted-image rectangle.
-- **Copy and content:** Visible copy is limited to `靠近。停留片刻。` and `你以为那是一颗行星。`. It does not reveal the neuron interpretation before the scale change.
-- **Icons:** The only icon is the three-bar sound state, implemented consistently with the restrained utility typography and verified in OFF and ON states.
-- **States and interactions:** Mouse proximity gathers and redirects nearby surface energy; roughly one second of dwell triggers the same signal across the surface and beyond the rim; the camera then retreats once and leaves a faint structural connection in the revealed state. Autonomous conduction, localized burst, annihilation, and recovery remain active without input.
-- **Scope note:** Mobile, touch, keyboard equivalence, reduced-motion behavior, legacy-browser support, and non-WebGL fallback were not reviewed because the current user-approved deliverable is desktop browser plus mouse only.
+- **Continuity:** central sphere, roots, remote nodes, and fiber field are sampled from one visual master plus activity/depth maps derived from that same master. There is no separate circular cutout edge or independent fiber plate.
+- **Depth:** a depth map drives subtle pointer parallax while the camera performs one slow Z-axis retreat. Foreground roots, distant nodes, smoke, and negative spaces preserve scale without a scene cut.
+- **Life rhythm:** the page always has low-amplitude conduction. Ambient events use uneven scheduling and alternate between bloom, collapse, darkness, and recovery; they are localized to the existing substrate instead of being a generic particle layer.
+- **Mouse causality:** moving across the central sphere gathers nearby filaments; resting for about one second closes the ring and starts a single network transmission. No click or repeated collection is required.
+- **Copy:** the opening premise is `你以为那是一颗行星。`; the instruction explicitly teaches movement and then dwelling; the final line is `直到它把你的触碰传向下一颗——你刚刚参与的，也许只是一次念头。`. The answer is withheld until the scale reveal.
+- **Sound:** optional Web Audio adds a quiet substrate, contact filtering, a moving transmission tone, camera-retreat resonance, and spatially separated remote responses. Sound is user-enabled from the visible top-right control.
+- **Sharpness:** all three runtime textures are 3344 × 1882 and the tested WebGL canvas is rendered at 2× display density. Final screenshots retain fine branching detail without enlarging the original 1672 × 941 raster directly.
+- **Scope:** desktop browser and mouse only, as approved. Mobile, touch, keyboard equivalence, reduced motion, legacy-browser support, and a non-WebGL fallback were not added or reviewed.
 
 ## Comparison history
 
-### Earlier implementation
+### Integrated substrate
 
-- **P1 — Full-frame plate remained visible:** The whole concept image was still the main background, while extracted layers only added light. This made the page read as a blurred PPT image rather than a layered living scene.
-- **Fix:** Generated a clean background plate with the sphere and signal removed, generated a real transparent planet cutout, rebuilt far/middle/near fiber separation, and rendered the planet independently at 2048 × 2048.
-- **Post-fix evidence:** `qa/final-idle-1280x720.jpg` and `qa/layer-contact-sheet-v3.jpg` show a clean silhouette, distinct depth planes, and no opaque image plate.
+- **Prior P1 — sphere and threads read as separate masks, and the reveal showed only one node.**
+- **Fix:** replaced the independently composited v3 plates with one generated high-resolution network master containing the central sphere, seamless tapered roots, shared branching material, nebula depth, and four distant sibling nodes. Activity and depth masks are derived from the same pixels.
+- **Post-fix evidence:** `qa/final-v4-idle-1280x720.jpg` and `qa/final-v4-revealed-1280x720.jpg`.
+
+### Interaction and narrative completion
+
+- **Prior P1 — `你以为那是一颗行星。` could read like the ending, and the mouse action was not discoverable.**
+- **Fix:** added the initial instruction `移动鼠标，寻找会回应你的纹路。`, the hover/dwell confirmation `它在回应。停住。`, a visible dwell trace, transmission status, and the complete reveal sentence.
+- **Post-fix evidence:** `qa/final-v4-idle-1280x720.jpg`, `qa/final-v4-hover-1280x720.jpg`, and `qa/final-v4-revealed-1280x720.jpg`.
 
 ### Signal refinement
 
-- **P2 — Moving signal read as an isolated dot:** The first rebuilt pass showed a small bright head without enough causal tail, and the final sphere appeared disconnected from the network.
-- **Fix:** Extended the signal into a curved core, wake, and halo; retained a dim version of the same route after the reveal.
-- **Post-fix evidence:** `qa/final-signal-1280x720.jpg` shows a continuous violet transmission beyond the rim; `qa/final-revealed-1280x720.jpg` shows the node still connected to the larger fiber field.
-
-### Final comparison
-
-- No actionable P0, P1, or P2 finding remains.
-- Intentional deviations from the static source are limited to a closer opening scale, a smaller revealed scale, stronger native sharpness, removed left-side pre-existing signal, and minimal interaction copy. Each deviation directly supports the one-action scale reversal.
+- **First v4 P2 — a geometric vector corridor briefly read as a laser over the image.**
+- **Fix:** retained the route timing but multiplied it by the source-derived activity texture so only real fibers illuminate; arrival responses now occur on two distant nodes.
+- **Post-fix evidence:** `qa/final-v4-signal-1280x720.jpg` and `qa/final-v4-remote-1280x720.jpg`.
 
 ## Browser verification
 
-- Loaded all seven runtime textures with HTTP 200 responses.
+- Loaded all three runtime textures with HTTP 200 responses.
 - Verified 1280 × 720 CSS viewport with a 2560 × 1440 WebGL canvas.
-- Verified idle life, mouse proximity, dwell charge, signal transmission, camera retreat, stable revealed state, and sound OFF → ON.
+- Verified idle, mouse movement, one-second dwell, signal propagation, remote response, camera retreat, stable reveal, re-trigger, and sound OFF → ON.
 - Browser console checked with zero warnings and zero errors.
 - JavaScript syntax checks and `git diff --check` passed.
 
 ## Findings
 
-- No remaining P0, P1, or P2 findings.
-- P3: sound balance still needs subjective review on the user's own speakers or headphones.
-
-## Implementation checklist
-
-- [x] Original concept remains the visual direction.
-- [x] Planet and background are genuinely independent layers.
-- [x] Runtime textures remain sharp at a 2× desktop canvas.
-- [x] The world has irregular autonomous conduction, bursts, annihilation, and recovery.
-- [x] Mouse proximity produces a continuous local response.
-- [x] One dwell triggers one boundary-crossing signal and one scale reversal.
-- [x] Revealed state remains alive and visibly connected.
-- [x] Console and asset loading are clean.
+- No remaining P0, P1, or P2 finding.
+- P3: sound balance remains subjective and should be checked on the presentation speakers or headphones.
 
 final result: passed

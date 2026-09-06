@@ -3,8 +3,8 @@
 
   const SOURCE_WIDTH = 1672;
   const SOURCE_HEIGHT = 941;
-  const INITIAL_ZOOM = 1.08;
-  const MAX_EVENTS = 4;
+  const INITIAL_ZOOM = 1.48;
+  const MAX_EVENTS = 6;
 
   const VERTEX_SHADER = `#version 300 es
     precision highp float;
@@ -28,11 +28,7 @@
     in vec2 vUv;
     out vec4 fragColor;
 
-    uniform sampler2D uBackground;
-    uniform sampler2D uMidFibers;
-    uniform sampler2D uNearFibers;
-    uniform sampler2D uPlanet;
-    uniform sampler2D uSurface;
+    uniform sampler2D uMaster;
     uniform sampler2D uActivity;
     uniform sampler2D uDepth;
 
@@ -51,6 +47,11 @@
     uniform float uEventAges[${MAX_EVENTS}];
     uniform float uEventKinds[${MAX_EVENTS}];
 
+    float pulseBand(float phase, float center, float width) {
+      float delta = abs(fract(phase - center + 0.5) - 0.5);
+      return 1.0 - smoothstep(0.0, width, delta);
+    }
+
     float sdSegment(vec2 p, vec2 a, vec2 b, out float along) {
       vec2 pa = p - a;
       vec2 ba = b - a;
@@ -58,112 +59,139 @@
       return length(pa - ba * along);
     }
 
-    float pulseBand(float phase, float center, float width) {
-      float delta = abs(fract(phase - center + 0.5) - 0.5);
-      return 1.0 - smoothstep(0.0, width, delta);
+    vec2 pathMetric(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d) {
+      float h0; float h1; float h2;
+      float d0 = sdSegment(p, a, b, h0);
+      float d1 = sdSegment(p, b, c, h1);
+      float d2 = sdSegment(p, c, d, h2);
+      float distanceToPath = d0;
+      float pathPosition = h0 * 0.32;
+      if (d1 < distanceToPath) {
+        distanceToPath = d1;
+        pathPosition = 0.32 + h1 * 0.34;
+      }
+      if (d2 < distanceToPath) {
+        distanceToPath = d2;
+        pathPosition = 0.66 + h2 * 0.34;
+      }
+      return vec2(distanceToPath, pathPosition);
     }
 
-    float unitBounds(vec2 uv) {
-      return step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    float travellingWindow(vec2 metric, float progress, float strength) {
+      float head = 1.0 - smoothstep(0.0, 0.026, abs(metric.y - progress));
+      float tail = smoothstep(progress - 0.42, progress - 0.12, metric.y)
+        * (1.0 - smoothstep(progress - 0.01, progress + 0.035, metric.y));
+      return max(head, tail * 0.55) * strength;
     }
 
     void main() {
       vec2 sourceUv = uCenter + (vUv - 0.5) * uSpan;
       if (sourceUv.x < 0.0 || sourceUv.x > 1.0 || sourceUv.y < 0.0 || sourceUv.y > 1.0) {
-        fragColor = vec4(0.006, 0.009, 0.011, 1.0);
+        fragColor = vec4(0.004, 0.006, 0.007, 1.0);
         return;
       }
 
-      vec2 farUv = clamp(sourceUv + uParallax * vec2(0.0018, 0.0012), 0.0, 1.0);
-      vec2 midUv = clamp(sourceUv + uParallax * vec2(0.0060, 0.0040), 0.0, 1.0);
-      vec2 nearUv = clamp(sourceUv + uParallax * vec2(0.0150, 0.0090), 0.0, 1.0);
+      vec2 heroCenter = vec2(0.5410, 0.4950);
+      vec2 heroDelta = sourceUv - heroCenter;
+      vec2 heroMetric = vec2(heroDelta.x / 0.205, heroDelta.y / 0.325);
+      float heroMask = 1.0 - smoothstep(0.90, 1.08, length(heroMetric));
 
-      vec3 color = texture(uBackground, farUv).rgb * mix(0.92, 1.04, uReveal);
-      vec4 midFibers = texture(uMidFibers, midUv);
-      float midFlowA = pulseBand(midUv.x * 1.32 - midUv.y * 0.42 - uTime * 0.021, 0.5, 0.026);
-      float midFlowB = pulseBand(midUv.y * 1.18 + midUv.x * 0.31 - uTime * 0.013, 0.5, 0.021);
-      float midLife = max(midFlowA, midFlowB * 0.62);
-      color += midFibers.rgb * midFibers.a * (0.34 + midLife * 0.72 + uReveal * 0.24);
+      float baseDepth = texture(uDepth, sourceUv).r;
+      vec2 depthParallax = uParallax * mix(vec2(0.0012, 0.0008), vec2(0.0058, 0.0034), baseDepth);
 
-      vec2 planetCenter = vec2(0.54127, 0.48990) - uParallax * vec2(0.0080, 0.0050);
-      float planetScale = mix(1.16, 0.72, uReveal) * (1.0 - uDwell * 0.012);
-      vec2 planetSize = vec2(0.3780, 0.6504) * planetScale;
-      vec2 planetUv = vec2(0.5) + (sourceUv - planetCenter) / planetSize;
-      vec2 pointerUv = vec2(0.5) + (uPointer - planetCenter) / planetSize;
-      vec2 pointerDelta = planetUv - pointerUv;
-      float pointerField = exp(-dot(pointerDelta, pointerDelta) * 54.0) * uPointerEnergy;
+      vec2 pointerDelta = sourceUv - uPointer;
+      pointerDelta.x *= uSourceAspect;
+      float pointerDistance = length(pointerDelta);
+      float pointerField = exp(-pointerDistance * pointerDistance * 210.0) * uPointerEnergy * heroMask;
 
       vec2 eventWarp = vec2(0.0);
       for (int i = 0; i < ${MAX_EVENTS}; i++) {
         float age = uEventAges[i];
         float kind = uEventKinds[i];
         if (age >= 0.0 && age <= 1.0 && kind > 0.0) {
-          vec2 eventUv = vec2(0.5) + (uEventPositions[i] - planetCenter) / planetSize;
-          vec2 eventDelta = planetUv - eventUv;
-          float eventDistance = length(eventDelta);
-          float envelope = sin(age * 3.14159265) * exp(-eventDistance * eventDistance * 56.0);
+          vec2 delta = sourceUv - uEventPositions[i];
+          delta.x *= uSourceAspect;
+          float distanceToEvent = length(delta);
+          float envelope = sin(age * 3.14159265) * exp(-distanceToEvent * distanceToEvent * 92.0);
           float direction = kind < 1.5 ? -1.0 : 1.0;
-          eventWarp += normalize(eventDelta + vec2(0.00001)) * envelope * direction * 0.010;
+          eventWarp += normalize(delta + vec2(0.00001)) * envelope * direction * 0.0046;
         }
       }
 
-      vec2 pointerWarp = normalize(pointerDelta + vec2(0.00001)) * pointerField * (0.007 + uDwell * 0.012);
-      vec2 warpedPlanetUv = planetUv + pointerWarp + eventWarp;
-      float planetBounds = unitBounds(warpedPlanetUv);
-      float depth = texture(uDepth, clamp(warpedPlanetUv, 0.0, 1.0)).r * planetBounds;
-      float activity = texture(uActivity, clamp(warpedPlanetUv, 0.0, 1.0)).r * planetBounds;
-      vec4 planet = texture(uPlanet, clamp(warpedPlanetUv, 0.0, 1.0)) * planetBounds;
-      vec4 surface = texture(uSurface, clamp(warpedPlanetUv, 0.0, 1.0)) * planetBounds;
+      vec2 pointerWarp = -normalize(pointerDelta + vec2(0.00001))
+        * pointerField * (0.0035 + uDwell * 0.0080);
+      pointerWarp.x /= uSourceAspect;
+      vec2 warpedUv = clamp(sourceUv + depthParallax + pointerWarp + eventWarp, 0.0, 1.0);
 
-      float bodyShadow = (1.0 - smoothstep(0.47, 0.57, length(planetUv - 0.5))) * planetBounds;
-      color *= 1.0 - bodyShadow * 0.16;
-      color = mix(color, planet.rgb, planet.a);
+      vec3 color = texture(uMaster, warpedUv).rgb;
+      float activity = texture(uActivity, warpedUv).r;
+      float depth = texture(uDepth, warpedUv).r;
+      color *= mix(0.91, 1.025, uReveal);
 
-      float flowA = pulseBand(planetUv.x * 1.92 + planetUv.y * 0.63 - uTime * 0.041, 0.5, 0.035);
-      float flowB = pulseBand(planetUv.y * 1.74 - planetUv.x * 0.36 - uTime * 0.027, 0.5, 0.029);
-      float idleSignal = max(flowA * 0.78, flowB * 0.58) * activity;
-      float localGather = pointerField * activity * (0.58 + uDwell * 1.42);
-      color += surface.rgb * surface.a * (0.08 + idleSignal * 1.30 + localGather * 2.10);
-      color += vec3(0.76, 0.62, 0.90) * pointerField * depth * (0.025 + uDwell * 0.055);
+      float flowA = pulseBand(warpedUv.x * 1.57 + warpedUv.y * 0.48 - uTime * 0.026, 0.5, 0.025);
+      float flowB = pulseBand(warpedUv.y * 1.42 - warpedUv.x * 0.37 - uTime * 0.017, 0.5, 0.021);
+      float flowC = pulseBand((warpedUv.x + warpedUv.y) * 1.08 - uTime * 0.011, 0.5, 0.017);
+      float idleConduction = max(flowA * 0.74, max(flowB * 0.54, flowC * 0.34)) * activity;
+      color += vec3(0.72, 0.48, 0.22) * idleConduction * (0.18 + depth * 0.26);
+      color += vec3(0.42, 0.27, 0.62) * idleConduction * 0.09;
 
-      vec2 p0 = planetCenter + vec2(0.0756, -0.003) * planetScale;
-      vec2 p1 = planetCenter + vec2(0.1880, 0.006) * planetScale;
-      vec2 p2 = vec2(0.8350, 0.5250);
-      vec2 p3 = vec2(1.0450, 0.4780);
-      float h0; float h1; float h2;
-      float d0 = sdSegment(sourceUv, p0, p1, h0);
-      float d1 = sdSegment(sourceUv, p1, p2, h1);
-      float d2 = sdSegment(sourceUv, p2, p3, h2);
-      float distanceToPath = d0;
-      float pathPosition = h0 * 0.3;
-      if (d1 < distanceToPath) { distanceToPath = d1; pathPosition = 0.3 + h1 * 0.32; }
-      if (d2 < distanceToPath) { distanceToPath = d2; pathPosition = 0.62 + h2 * 0.38; }
-      float lineCore = 1.0 - smoothstep(0.0009, 0.0052, distanceToPath);
-      float lineHalo = 1.0 - smoothstep(0.0025, 0.0115, distanceToPath);
+      float localGather = pointerField * activity * (0.72 + uDwell * 2.45);
+      color += vec3(0.93, 0.70, 0.42) * localGather * 0.52;
+      color += vec3(0.66, 0.42, 0.94) * localGather * 0.28;
 
-      float restingConnection = uReveal * (lineCore * 0.17 + lineHalo * 0.032);
-      color += vec3(0.48, 0.34, 0.61) * restingConnection;
+      float gatherRadius = mix(0.105, 0.018, uDwell);
+      float gatheringFront = 1.0 - smoothstep(0.006, 0.022, abs(pointerDistance - gatherRadius));
+      color += vec3(0.78, 0.52, 0.92) * gatheringFront * activity * uPointerEnergy * (0.22 + uDwell * 0.50);
 
-      float signalGlow = 0.0;
+      float triggerCompression = smoothstep(0.70, 1.0, uDwell)
+        * exp(-pointerDistance * pointerDistance * 390.0) * heroMask;
+      color *= 1.0 - triggerCompression * 0.36;
+
+      vec2 aspectScale = vec2(uSourceAspect, 1.0);
+      vec2 pathA = pathMetric(
+        sourceUv * aspectScale,
+        vec2(0.624, 0.535) * aspectScale,
+        vec2(0.742, 0.515) * aspectScale,
+        vec2(0.842, 0.478) * aspectScale,
+        vec2(0.932, 0.442) * aspectScale
+      );
+      vec2 pathB = pathMetric(
+        sourceUv * aspectScale,
+        vec2(0.594, 0.338) * aspectScale,
+        vec2(0.445, 0.244) * aspectScale,
+        vec2(0.235, 0.246) * aspectScale,
+        vec2(0.075, 0.328) * aspectScale
+      );
+
       if (uSignal >= 0.0) {
-        vec2 signalOriginUv = vec2(0.5) + (uSignalOrigin - planetCenter) / planetSize;
-        vec2 signalDelta = planetUv - signalOriginUv;
-        float radialDistance = length(signalDelta);
-        float radialFront = uSignal * 0.58;
-        float surfaceFront = exp(-pow((radialDistance - radialFront) / 0.018, 2.0));
-        surfaceFront *= activity * (1.0 - smoothstep(0.0, 0.72, uSignal));
-        color += surface.rgb * surface.a * surfaceFront * 3.4;
+        vec2 originDelta = sourceUv - uSignalOrigin;
+        originDelta.x *= uSourceAspect;
+        float surfaceDistance = length(originDelta);
+        float surfaceFront = 1.0 - smoothstep(0.005, 0.025, abs(surfaceDistance - uSignal * 0.36));
+        surfaceFront *= activity * heroMask * (1.0 - smoothstep(0.42, 0.74, uSignal));
+        color += vec3(0.94, 0.68, 1.0) * surfaceFront * 1.15;
 
-        float outgoing = clamp((uSignal - 0.20) / 0.80, 0.0, 1.0);
-        float headWindow = 1.0 - smoothstep(0.0, 0.024, abs(pathPosition - outgoing));
-        float tailWindow = smoothstep(outgoing - 0.44, outgoing - 0.12, pathPosition)
-          * (1.0 - smoothstep(outgoing - 0.008, outgoing + 0.030, pathPosition));
-        float wakeWindow = smoothstep(-0.04, 0.05, pathPosition)
-          * (1.0 - smoothstep(outgoing - 0.02, outgoing + 0.055, pathPosition));
-        signalGlow = lineCore * max(headWindow, max(tailWindow * 0.50, wakeWindow * 0.14));
-        float signalHalo = lineHalo * max(headWindow * 0.32, tailWindow * 0.10);
-        color += vec3(0.92, 0.66, 1.0) * signalGlow * 1.68;
-        color += vec3(0.54, 0.31, 0.82) * signalHalo;
+        float progressA = clamp((uSignal - 0.16) / 0.76, 0.0, 1.0);
+        float progressB = clamp((uSignal - 0.24) / 0.70, 0.0, 1.0);
+        float windowA = travellingWindow(pathA, progressA, 1.0);
+        float windowB = travellingWindow(pathB, progressB, 0.90);
+        float corridorA = 1.0 - smoothstep(0.008, 0.058, pathA.x);
+        float corridorB = 1.0 - smoothstep(0.008, 0.066, pathB.x);
+        float filamentSignal = activity * (corridorA * windowA + corridorB * windowB) * 2.25;
+        float headA = (1.0 - smoothstep(0.0015, 0.012, pathA.x))
+          * (1.0 - smoothstep(0.0, 0.021, abs(pathA.y - progressA)));
+        float headB = (1.0 - smoothstep(0.0015, 0.012, pathB.x))
+          * (1.0 - smoothstep(0.0, 0.021, abs(pathB.y - progressB)));
+        color += vec3(0.94, 0.68, 1.0) * filamentSignal * 0.92;
+        color += vec3(0.92, 0.71, 1.0) * (headA + headB * 0.84) * 0.34;
+
+        vec2 rightDelta = (sourceUv - vec2(0.932, 0.442)) * aspectScale;
+        vec2 leftDelta = (sourceUv - vec2(0.075, 0.328)) * aspectScale;
+        float arrival = smoothstep(0.72, 0.84, uSignal) * (1.0 - smoothstep(0.91, 1.0, uSignal));
+        float rightArrival = exp(-dot(rightDelta, rightDelta) * 92.0) * arrival;
+        float leftArrival = exp(-dot(leftDelta, leftDelta) * 72.0) * arrival;
+        color += vec3(0.96, 0.69, 0.36) * rightArrival * 1.16;
+        color *= 1.0 - leftArrival * 0.42;
       }
 
       float eventLight = 0.0;
@@ -172,35 +200,30 @@
         float age = uEventAges[i];
         float kind = uEventKinds[i];
         if (age >= 0.0 && age <= 1.0 && kind > 0.0) {
-          vec2 eventUv = vec2(0.5) + (uEventPositions[i] - planetCenter) / planetSize;
-          vec2 eventDelta = planetUv - eventUv;
-          float eventDistance = length(eventDelta);
+          vec2 delta = sourceUv - uEventPositions[i];
+          delta.x *= uSourceAspect;
+          float distanceToEvent = length(delta);
           if (kind < 1.5) {
-            float bloom = sin(age * 3.14159265) * exp(-eventDistance * eventDistance * 82.0);
-            float ring = (1.0 - smoothstep(0.006, 0.022, abs(eventDistance - age * 0.19))) * (1.0 - age);
-            eventLight += (bloom * 1.24 + ring * 0.48) * activity;
+            float bloom = sin(age * 3.14159265) * exp(-distanceToEvent * distanceToEvent * 120.0);
+            float ring = (1.0 - smoothstep(0.006, 0.021, abs(distanceToEvent - age * 0.12))) * (1.0 - age);
+            eventLight += bloom * 0.74 + ring * 0.42;
           } else {
-            float collapse = (1.0 - smoothstep(0.006, 0.020, abs(eventDistance - (1.0 - age) * 0.15))) * (1.0 - age);
-            float scar = exp(-eventDistance * eventDistance * 105.0) * smoothstep(0.18, 0.46, age) * (1.0 - smoothstep(0.72, 1.0, age));
-            eventLight += collapse * 0.38 * activity;
-            eventDark += scar * 0.82 * activity;
+            float collapse = (1.0 - smoothstep(0.006, 0.022, abs(distanceToEvent - (1.0 - age) * 0.105))) * (1.0 - age);
+            float scar = exp(-distanceToEvent * distanceToEvent * 145.0)
+              * smoothstep(0.18, 0.44, age) * (1.0 - smoothstep(0.76, 1.0, age));
+            eventLight += collapse * 0.20;
+            eventDark += scar * 0.68;
           }
         }
       }
+      color += vec3(1.0, 0.72, 0.34) * eventLight * (0.34 + activity * 0.66);
+      color *= 1.0 - eventDark * (0.42 + activity * 0.58);
 
-      color += vec3(1.0, 0.76, 0.46) * eventLight;
-      color *= 1.0 - eventDark;
-
-      float triggerCompression = smoothstep(0.70, 1.0, uDwell) * exp(-dot(pointerDelta, pointerDelta) * 110.0) * activity;
-      color *= 1.0 - triggerCompression * 0.42;
-
-      vec4 nearFibers = texture(uNearFibers, nearUv);
-      float nearFlow = pulseBand(nearUv.x * 1.08 - nearUv.y * 0.28 - uTime * 0.025, 0.5, 0.024);
-      color += nearFibers.rgb * nearFibers.a * (0.48 + nearFlow * 0.88 + uReveal * 0.34);
-
-      float vignette = smoothstep(1.05, 0.2, length((vUv - 0.5) * vec2(1.05, 0.92)));
-      color *= mix(0.7, 1.0, vignette);
-      color = pow(max(color, 0.0), vec3(0.90));
+      float nebulaDepth = (1.0 - depth) * uReveal;
+      color += color * nebulaDepth * 0.035;
+      float vignette = smoothstep(1.08, 0.18, length((vUv - 0.5) * vec2(1.05, 0.92)));
+      color *= mix(0.65, 1.0, vignette);
+      color = pow(max(color, 0.0), vec3(0.91));
       fragColor = vec4(color, 1.0);
     }
   `;
@@ -223,7 +246,7 @@
       this.parallax = { x: 0, y: 0 };
       this.events = [];
       this.viewport = { width: 1, height: 1, dpr: 1 };
-      this.center = { x: 0.538, y: 0.49 };
+      this.center = { x: 0.54, y: 0.495 };
       this.span = { x: 1, y: 1 };
     }
 
@@ -232,15 +255,12 @@
       const gl = this.gl;
       this.program = this.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
       this.uniforms = this.collectUniforms([
-        "uBackground", "uMidFibers", "uNearFibers", "uPlanet", "uSurface", "uActivity", "uDepth",
-        "uTime", "uReveal", "uPointerEnergy", "uDwell", "uSignal", "uSourceAspect",
-        "uCenter", "uSpan", "uPointer", "uParallax", "uSignalOrigin", "uEventPositions[0]", "uEventAges[0]", "uEventKinds[0]",
+        "uMaster", "uActivity", "uDepth", "uTime", "uReveal", "uPointerEnergy", "uDwell",
+        "uSignal", "uSourceAspect", "uCenter", "uSpan", "uPointer", "uParallax", "uSignalOrigin",
+        "uEventPositions[0]", "uEventAges[0]", "uEventKinds[0]",
       ]);
 
-      const files = [
-        "background-far-v3.png", "fibers-mid-v3.png", "fibers-near-v3.png", "planet-core-v3.png",
-        "planet-surface-v3.png", "planet-activity-v3.png", "planet-depth-v3.png",
-      ];
+      const files = ["network-master-v4.png", "network-activity-v4.png", "network-depth-v4.png"];
       const images = await Promise.all(files.map((file) => this.loadImage(`${assetRoot}/${file}`)));
       this.textures = images.map((image) => this.createTexture(image));
       this.resize();
@@ -314,7 +334,7 @@
     updateView() {
       const zoom = INITIAL_ZOOM + (1 - INITIAL_ZOOM) * this.reveal;
       const cover = Math.max(this.viewport.width / SOURCE_WIDTH, this.viewport.height / SOURCE_HEIGHT);
-      const initialCenter = { x: 900 / SOURCE_WIDTH, y: 1 - 480 / SOURCE_HEIGHT };
+      const initialCenter = { x: 0.541, y: 0.495 };
       const finalCenter = { x: 0.5, y: 0.5 };
       this.center.x = initialCenter.x + (finalCenter.x - initialCenter.x) * this.reveal;
       this.center.y = initialCenter.y + (finalCenter.y - initialCenter.y) * this.reveal;
@@ -333,10 +353,9 @@
     }
 
     isOverPlanet(point) {
-      const scale = 1.16 + (0.72 - 1.16) * this.reveal;
-      const dx = (point.x - 905 / SOURCE_WIDTH) / (0.1890 * scale);
-      const dy = (point.y - (1 - 480 / SOURCE_HEIGHT)) / (0.3252 * scale);
-      return Math.hypot(dx, dy) < 0.98;
+      const dx = (point.x - 0.541) / 0.205;
+      const dy = (point.y - 0.495) / 0.325;
+      return Math.hypot(dx, dy) < 0.96;
     }
 
     setPointer(point, energy) {
@@ -380,7 +399,7 @@
         gl.activeTexture(gl.TEXTURE0 + index);
         gl.bindTexture(gl.TEXTURE_2D, texture);
       });
-      ["uBackground", "uMidFibers", "uNearFibers", "uPlanet", "uSurface", "uActivity", "uDepth"].forEach((name, index) => {
+      ["uMaster", "uActivity", "uDepth"].forEach((name, index) => {
         gl.uniform1i(this.uniforms[name], index);
       });
 
