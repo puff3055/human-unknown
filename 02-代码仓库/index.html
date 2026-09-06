@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="HUMAN UNKNOWN — 人类的世界，只是世界的一种解释。">
+  <link rel="icon" href="data:,">
   <title>HUMAN UNKNOWN</title>
   <link rel="preload" as="image" href="assets/home-contact-background.png">
   <link rel="preload" as="image" href="assets/cursor-light-cloud.png">
   <link rel="preload" as="image" href="assets/cursor-light-point.png">
+  <link rel="preload" as="image" href="assets/world1-update-2-background@2x.png">
   <link rel="stylesheet" href="style.css?v=4.5.3-rc.1">
+  <link rel="stylesheet" href="green-body-realtime.css?v=home-green-0.1.0-rc.1">
 </head>
 <body>
   <main
@@ -120,11 +123,68 @@
     </div>
   </main>
 
+  <section
+    class="world-one"
+    id="worldOne"
+    data-active="false"
+    data-entry="idle"
+    data-phase="prepared"
+    aria-label="CHAPTER 01 / THE GREEN BODY｜群体生命"
+    aria-hidden="true"
+    tabindex="-1"
+    hidden
+  >
+    <canvas class="world-one__living" id="greenBodyLivingCanvas" aria-hidden="true"></canvas>
+    <canvas class="world-one__canvas" id="greenBodyCanvas" aria-hidden="true"></canvas>
+    <div class="world-one__vignette" aria-hidden="true"></div>
+    <header class="world-one__chrome">
+      <button id="worldReturn" type="button">HUMAN UNKNOWN</button>
+      <span>PLANT</span>
+    </header>
+    <div class="world-one__copy" id="worldCopy" aria-live="polite">
+      <div class="world-one__beat" data-beat="chapter">
+        <small>CHAPTER 01</small>
+        <h2>THE GREEN BODY</h2>
+        <p>群体生命</p>
+        <i></i>
+        <blockquote>“我”一定有明确边界吗？</blockquote>
+      </div>
+      <div class="world-one__beat world-one__beat--right" data-beat="here"><p>这里感知到了你。</p><small>THIS PLACE HAS FELT YOU.</small></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="there"><p>那里，<br>也是你。</p><small>THERE,<br>IT IS ALSO YOU.</small></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="final"><p>如果整个生态网络<br>才是意识的尺度呢？</p><small>IF THE ENTIRE ECOLOGICAL NETWORK<br>IS THE TRUE SCALE OF CONSCIOUSNESS?</small><cite>——《Avatar》</cite></div>
+    </div>
+    <div class="world-one__hint" id="worldHint">移动你的感知，看看哪里会注意到你。 <span>MOVE TO EXPLORE</span></div>
+    <div class="world-one__cursor" id="worldCursor" aria-hidden="true"><i></i></div>
+    <p class="visually-hidden" id="worldStatus" aria-live="polite" aria-atomic="true"></p>
+  </section>
+
+  <div
+    class="journey-bridge"
+    id="journeyBridge"
+    data-state="idle"
+    data-carrier-node="spore-center-low"
+    data-cut-count="0"
+    aria-hidden="true"
+  >
+    <p class="journey-bridge__copy" id="journeyBridgeCopy">
+      <span>你正在坠入</span>
+      <strong>一具更大的身体……</strong>
+      <small>YOU ARE FALLING INTO A LARGER BODY…</small>
+    </p>
+    <span class="journey-bridge__carrier" id="journeyCarrier">
+      <img src="assets/cursor-light-point.png" alt="" width="192" height="192" draggable="false">
+    </span>
+  </div>
+
   <noscript>请启用 JavaScript，完成这次接触。</noscript>
   <script src="encounter-machine.js?v=4.5.3-rc.1"></script>
   <script src="living-nebula.js?v=4.5.3-rc.1"></script>
   <script src="living-soundscape.js?v=4.5.3-rc.1"></script>
   <script src="light-cursor.js?v=4.5.3-rc.1"></script>
+  <script src="world-one-soundscape.js?v=home-green-0.1.0-rc.1"></script>
+  <script src="green-body-living.js?v=home-green-0.1.0-rc.1"></script>
+  <script src="green-body-realtime.js?v=home-green-0.1.0-rc.1"></script>
+  <script src="journey-controller.js?v=home-green-0.1.0-rc.1"></script>
   <script src="app.js?v=4.5.3-rc.1"></script>
 </body>
 </html>
