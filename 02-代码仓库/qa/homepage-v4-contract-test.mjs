@@ -24,18 +24,19 @@ const {
 
 assert.deepEqual(
   Array.from(COPY_SEQUENCE),
-  ['它注意到你了', '在中间放入你的眼睛'],
-  'only the two approved lines remain'
+  ['它注意到你了'],
+  'only the approved persistent line remains'
 );
 assert.doesNotMatch(machineSource, /对，在这里/);
+assert.doesNotMatch(machineSource, /在中间放入你的眼睛/);
 assert.equal(STANDARD_TIMING.titleMinReadMs, 4000);
 assert.equal(STANDARD_TIMING.holdMs, 3000, 'the gaze countdown lasts three seconds');
 assert.equal(STANDARD_TIMING.contactReadMs, 1600);
 assert.equal(STANDARD_TIMING.nearReadMs, 1600);
-assert.equal(STANDARD_TIMING.readyPauseMs, 5000);
-assert.equal(STANDARD_TIMING.guideEnterMs, 1200);
+assert.equal(STANDARD_TIMING.readyPauseMs, 8000);
+assert.equal(STANDARD_TIMING.guideEnterMs, 3000);
 assert.equal(STANDARD_TIMING.guideSwapMs, 1200);
-assert.equal(STANDARD_TIMING.noticedReadMs, 5000);
+assert.equal(STANDARD_TIMING.noticedReadMs, 0);
 assert.equal(STANDARD_TIMING.alignedReadMs, 1800);
 assert.equal(STANDARD_TIMING.alignedExitMs, 550);
 assert.ok(STANDARD_TIMING.revealMs >= 3000 && STANDARD_TIMING.revealMs <= 4000);
@@ -90,31 +91,24 @@ function reachAligned(machine) {
   state = advance(
     machine,
     narrationStartsAt,
-    state.guideReadableAt + STANDARD_TIMING.noticedReadMs - 1,
+    state.guideReadableAt - 1,
     AWAY
   );
-  assert.equal(state.phase, 'noticed', 'the first line stays fully readable for five seconds');
-  const aligned = advanceUntil(
-    machine,
-    state.guideReadableAt + STANDARD_TIMING.noticedReadMs - 1,
-    (state) => state.phase === 'aligned',
-    AWAY
-  );
-  assert.equal(aligned.state.guide, '在中间放入你的眼睛');
-  return aligned;
+  assert.equal(state.phase, 'noticed', 'the page waits for the full three-second reveal');
+  assert.equal(state.countdownState, 'waiting');
+  state = machine.update(state.guideReadableAt, AWAY);
+  assert.equal(state.phase, 'aligned');
+  assert.equal(state.guide, '它注意到你了', 'the same line persists after alignment');
+  return { state, now: state.guideReadableAt };
 }
 
 function reachCountdownReady(machine) {
   const aligned = reachAligned(machine);
-  let state = advance(machine, aligned.now, aligned.state.guideReadableAt - 1, CORE_ACTIVE);
-  assert.equal(state.hold, 0, 'the countdown cannot start during the final line fade-in');
-  assert.equal(state.countdownState, 'waiting');
-  assert.equal(state.finalGuideReadComplete, false);
-
-  state = machine.update(aligned.state.guideReadableAt, CORE_INACTIVE);
+  const state = machine.update(aligned.now, CORE_INACTIVE);
   assert.equal(state.finalGuideReadComplete, true);
   assert.equal(state.finalGuideComplete, true);
-  assert.equal(state.guideExit, 0, 'the final line remains visible');
+  assert.equal(state.guideExit, 0, 'the line remains visible after becoming actionable');
+  assert.equal(state.guide, '它注意到你了');
   assert.equal(state.hold, 0);
   assert.equal(state.countdownReady, true);
   assert.equal(state.countdownState, 'ready');
@@ -124,7 +118,7 @@ function reachCountdownReady(machine) {
 const still = new EncounterMachine();
 still.start(0);
 let state = still.update(narrationStartsAt - 1, AWAY);
-assert.equal(state.phase, 'opening', 'the first line waits for three seconds after ready');
+assert.equal(state.phase, 'opening', 'the line waits eight seconds after ready');
 assert.equal(state.intro, 'title-hold');
 assert.equal(state.guide, '');
 
@@ -139,7 +133,7 @@ assert.ok(state.reveal > 0 && state.reveal < 1);
 state = opening.update(narrationStartsAt);
 assert.equal(state.phase, 'noticed');
 assert.equal(state.guide, '它注意到你了');
-assert.ok(state.titleReadableFor >= 3000);
+assert.ok(state.titleReadableFor >= 8000);
 
 const preGateTouch = new EncounterMachine();
 const touchReady = reachCountdownReady(preGateTouch);
@@ -162,6 +156,7 @@ state = advance(countdown, ready.now + 2999, ready.now + 3000, CORE_ACTIVE, 1);
 assert.equal(state.phase, 'entering');
 assert.equal(state.countdownState, 'complete');
 assert.equal(state.countdownValue, 0);
+assert.equal(state.guide, '它注意到你了', 'the line persists through entry');
 
 const softRelease = new EncounterMachine();
 const releaseReady = reachCountdownReady(softRelease);
@@ -226,8 +221,9 @@ const reducedState = reduced.update(reducedTitleAt + REDUCED_TIMING.readyPauseMs
 assert.equal(reducedState.phase, 'noticed');
 assert.equal(reducedState.reducedMotion, true);
 assert.equal(REDUCED_TIMING.titleMinReadMs, 4000, 'reduced motion preserves reading time');
-assert.equal(REDUCED_TIMING.readyPauseMs, 5000, 'reduced motion preserves the ready pause');
-assert.equal(REDUCED_TIMING.noticedReadMs, 5000, 'reduced motion preserves the first line hold');
+assert.equal(REDUCED_TIMING.readyPauseMs, 8000, 'reduced motion preserves the ready pause');
+assert.equal(REDUCED_TIMING.guideEnterMs, 3000, 'reduced motion preserves the narration reveal');
+assert.equal(REDUCED_TIMING.noticedReadMs, 0, 'there is no automatic narration replacement');
 assert.equal(REDUCED_TIMING.alignedReadMs, 1800, 'reduced motion preserves narration time');
 assert.equal(REDUCED_TIMING.holdMs, 3000, 'reduced motion preserves the deliberate countdown');
 assert.ok(REDUCED_TIMING.entryMs < STANDARD_TIMING.entryMs);
@@ -242,14 +238,14 @@ assert.match(html, /data-intro="blackout"/);
 assert.match(html, /data-phase="opening"/);
 assert.match(html, /data-countdown="waiting"/);
 assert.match(html, /id="gazeCountdown"/);
-assert.match(html, /encounter-machine\.js\?v=4\.5\.3-rc\.1/);
+assert.match(html, /encounter-machine\.js\?v=4\.6\.0-rc\.1/);
 assert.match(html, /在瞳孔内连续停留三秒/);
 assert.match(appSource, /pointerup/);
 assert.match(appSource, /pointercancel/);
 assert.match(appSource, /humanunknown:homepage-exit/);
 assert.match(appSource, /--contact-countdown/);
 assert.match(appSource, /countdownAttribute: 'data-countdown'/);
-assert.match(appSource, /version: '4\.5'/);
+assert.match(appSource, /version: '4\.6'/);
 assert.match(appSource, /1 \+ nextState\.hold \* 0\.05 \+ zoom \* 3\.55/);
 assert.doesNotMatch(appSource, /1 - collapse \* 0\.17 \+ fall/);
 assert.match(style, /@media \(prefers-reduced-motion: reduce\)/);
@@ -266,7 +262,7 @@ assert.match(html, /id="returnControl"/);
 assert.match(style, /data-phase="handoff"\] \.return-control/);
 assert.match(appSource, /window\.location\.reload\(\)/);
 assert.match(style, /\.guide p\s*\{[\s\S]*?font-size: clamp\(10px, \.78vw, 13px\);/);
-assert.match(style, /opacity 1\.2s ease/);
+assert.match(style, /opacity 3s ease/);
 assert.match(style, /data-countdown="active"\] \.gaze-countdown/);
 assert.match(style, /data-countdown="active"\] \.cosmos::after/);
 assert.match(style, /scaleX\(\.72\)/);
@@ -274,4 +270,4 @@ assert.doesNotMatch(nebulaSource, /narrativeScale|collapseFrame|narrativeMask/);
 assert.match(nebulaSource, /vec2 narrativeUv = vUv;/);
 assert.match(nebulaSource, /state\.zoom \|\| 0/);
 
-console.log('homepage v4.5 contract: passed');
+console.log('homepage v4.6 contract: passed');

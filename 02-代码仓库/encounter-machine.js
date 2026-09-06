@@ -3,14 +3,13 @@
 
   const COPY_SEQUENCE = Object.freeze([
     '它注意到你了',
-    '在中间放入你的眼睛',
   ]);
 
   const PHASE_COPY = Object.freeze({
     contact: COPY_SEQUENCE[0],
     near: COPY_SEQUENCE[0],
     noticed: COPY_SEQUENCE[0],
-    aligned: COPY_SEQUENCE[1],
+    aligned: COPY_SEQUENCE[0],
   });
 
   const STANDARD_TIMING = Object.freeze({
@@ -18,13 +17,13 @@
     revealMs: 3600,
     titleInMs: 1500,
     titleMinReadMs: 4000,
-    readyPauseMs: 5000,
+    readyPauseMs: 8000,
     titleDissolveMs: 2400,
     guideSwapMs: 1200,
-    guideEnterMs: 1200,
+    guideEnterMs: 3000,
     contactReadMs: 1600,
     nearReadMs: 1600,
-    noticedReadMs: 5000,
+    noticedReadMs: 0,
     alignedReadMs: 1800,
     alignedExitMs: 550,
     noticeDwellMs: 380,
@@ -44,7 +43,7 @@
     titleInMs: 120,
     titleDissolveMs: 80,
     guideSwapMs: 1200,
-    guideEnterMs: 1200,
+    guideEnterMs: 3000,
     alignedExitMs: 80,
     noticeDwellMs: 160,
     coreDwellMs: 180,

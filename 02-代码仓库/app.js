@@ -1621,7 +1621,7 @@
       firstContactAt,
       sound: soundscape ? soundscape.getState() : null,
       contract: {
-        version: '4.5',
+        version: '4.6',
         phaseAttribute: 'data-phase',
         introAttribute: 'data-intro',
         countdownAttribute: 'data-countdown',
