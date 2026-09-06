@@ -7,7 +7,7 @@
   <meta name="description" content="HUMAN UNKNOWN — 每一声 hey，都会让一个新世界看见你。">
   <title>HUMAN UNKNOWN — EYE MULTIVERSE</title>
   <link rel="preload" as="image" href="assets/eye-orb-source-cutout.png">
-  <link rel="stylesheet" href="eye-multiverse.css?v=0.5.0">
+  <link rel="stylesheet" href="eye-multiverse.css?v=0.6.0">
 </head>
 <body>
   <main class="multiverse" id="multiverse" data-state="idle" data-input="pointer">
@@ -15,37 +15,37 @@
     <canvas id="networkCanvas" class="multiverse__network" aria-hidden="true"></canvas>
     <div class="multiverse__veil" aria-hidden="true"></div>
 
-    <section class="multiverse__invitation" id="invitation" aria-labelledby="invitationTitle">
-      <p class="multiverse__eyebrow">EYE MULTIVERSE</p>
-      <p class="multiverse__title" id="invitationTitle">它们还没有听见你</p>
-      <div class="multiverse__voice" id="voicePanel">
-        <canvas class="multiverse__wave" id="voiceWave" width="560" height="72" aria-hidden="true"></canvas>
-        <div class="multiverse__voice-meta" aria-live="polite" aria-atomic="true">
-          <span class="multiverse__voice-dot" aria-hidden="true"></span>
-          <span id="voiceState">麦克风未开启</span>
-          <span class="multiverse__transcript" id="transcript"></span>
+    <header class="multiverse__header">
+      <p class="multiverse__brand"><i aria-hidden="true"></i>EYE MULTIVERSE</p>
+      <div class="multiverse__tools">
+        <div class="multiverse__counter" aria-live="polite" aria-label="已回应的新世界数量">
+          <span id="count">00</span>
+          <small>WORLDS ANSWERED</small>
         </div>
+        <button class="multiverse__sound" id="soundButton" type="button" aria-pressed="false" aria-label="开启声音">
+          <img id="soundIcon" src="assets/tabler-volume-off.svg" alt="">
+        </button>
       </div>
-      <p class="multiverse__instruction" id="instruction">说出 <b>hey</b><span>每一声，都会让现实产生一个新分支</span></p>
-      <div class="multiverse__actions">
-        <button class="multiverse__listen" id="listenButton" type="button">开启麦克风</button>
-        <button class="multiverse__manual" id="manualButton" type="button">按 H 或点击这里体验</button>
+    </header>
+
+    <section class="multiverse__voice-dock" id="voicePanel" aria-label="语音交互">
+      <button class="multiverse__listen" id="listenButton" type="button" aria-label="开启麦克风">
+        <img id="microphoneIcon" src="assets/tabler-microphone.svg" alt="">
+        <span class="multiverse__listen-trace" aria-hidden="true"></span>
+      </button>
+      <div class="multiverse__voice-body">
+        <div class="multiverse__voice-copy" aria-live="polite" aria-atomic="true">
+          <span class="multiverse__voice-state" id="voiceState">让它们听见你</span>
+          <span class="multiverse__transcript" id="transcript">麦克风未开启</span>
+          <span class="multiverse__token" id="signalToken" aria-hidden="true">HEY · +1</span>
+        </div>
+        <canvas class="multiverse__wave" id="voiceWave" width="620" height="72" aria-hidden="true"></canvas>
       </div>
     </section>
 
-    <div class="multiverse__counter" aria-live="polite" aria-label="已回应的新世界数量">
-      <span id="count">00</span>
-      <small>WORLDS ANSWERED</small>
-    </div>
-
-    <button class="multiverse__sound" id="soundButton" type="button" aria-pressed="true" aria-label="关闭声音">
-      <span aria-hidden="true"></span>
-    </button>
-
-    <p class="multiverse__fallback" id="fallback" hidden>浏览器无法持续聆听。点击任意位置，或按 <kbd>H</kbd>，也可以发出一声 hey。</p>
     <p class="visually-hidden" id="status" aria-live="assertive" aria-atomic="true"></p>
   </main>
   <noscript>请启用 JavaScript，让这个世界回应你。</noscript>
-  <script src="eye-multiverse.js?v=0.5.0"></script>
+  <script src="eye-multiverse.js?v=0.6.0"></script>
 </body>
 </html>

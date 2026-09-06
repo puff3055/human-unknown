@@ -2,7 +2,7 @@
 
 ## Tabler Icons
 
-The sound on/off icons are adapted from Tabler Icons.
+The sound on/off and microphone icons are adapted from Tabler Icons.
 
 MIT License
 
