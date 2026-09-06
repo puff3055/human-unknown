@@ -7,18 +7,20 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const read = (name) => readFile(path.join(root, name), 'utf8');
 
-const [html, app, journey, green, living, css] = await Promise.all([
+const [html, app, journey, green, narrative, living, css] = await Promise.all([
   read('index.html'),
   read('app.js'),
   read('journey-controller.js'),
   read('green-body-realtime.js'),
+  read('green-body-narrative.js'),
   read('green-body-living.js'),
   read('green-body-realtime.css'),
 ]);
 
 assert.match(html, /id="worldOne"[\s\S]*id="journeyBridge"/);
 assert.match(html, /id="journeyCarrier"[\s\S]*cursor-light-point\.png/);
-assert.match(html, /green-body-realtime\.js[\s\S]*journey-controller\.js[\s\S]*app\.js/);
+assert.match(html, /green-body-narrative\.js[\s\S]*green-body-realtime\.js[\s\S]*journey-controller\.js[\s\S]*app\.js/);
+assert.match(html, /id="worldSourcesToggle"[\s\S]*id="worldSourcesPanel"/);
 
 assert.match(app, /humanunknown:homepage-exit/);
 assert.match(journey, /const ENTRY_NODE = 'spore-center-low'/);
@@ -36,8 +38,14 @@ assert.match(green, /getNodeScreenPosition,/);
 assert.match(green, /greenbody:entry/);
 assert.match(green, /greenbody:arrival/);
 assert.match(green, /greenbody:complete/);
+assert.match(green, /updateNarrative/);
+assert.match(green, /revealSources/);
 assert.doesNotMatch(green, /function updateEntrance/);
 assert.doesNotMatch(green, /requestAnimationFrame\(updateEntrance\)/);
+assert.match(narrative, /同一个“我”同时活在许多生命里/);
+assert.match(narrative, /如果人类社会，才是一个更缓慢、更巨大的意识/);
+assert.match(narrative, /A Fire Upon the Deep/);
+assert.match(narrative, /More Than Human/);
 assert.match(living, /root\.dataset\.active !== 'true'[\s\S]*canvas\.dataset\.paused = 'true'/);
 
 assert.match(css, /\.world-one \{[^}]*background: #020502/);

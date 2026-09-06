@@ -17,6 +17,7 @@
 - `living-soundscape.js`：V4.2 继承的可感窄带低频声场、默认 `armed` 与一次手势启声。
 - `style.css`：页面布局、标题、提示与声音开关样式。
 - `journey-controller.js`：监听首页进入／出口事件，用同一个光点完成一次硬切并抵达世界 1 的真实节点。
+- `green-body-narrative.js`：集中维护世界 1 的分阶段旁白、操作提示、思想坐标和经过来源核对的延伸推荐。
 - `green-body-realtime.js`：世界 1 的隐藏传导图、真实抵达、器官回应、章节状态与返回契约。
 - `green-body-living.js`：基于世界 1 母版的实时生命纹理。
 - `green-body-realtime.css`：世界 1 与跨世界光点的舞台、文字和动效样式。

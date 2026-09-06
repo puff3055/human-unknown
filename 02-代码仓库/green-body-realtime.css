@@ -18,10 +18,10 @@ body.world-one-active { overflow: hidden; cursor: none; }
 .world-one__chrome button:focus-visible { outline: 1px solid rgba(255,255,255,.65); outline-offset: 8px; }
 .world-one__chrome span { border-bottom: 1px solid rgba(255,255,255,.55); padding-bottom: 7px; }
 .world-one__copy { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-.world-one__beat { position: absolute; top: 43%; left: 6.1%; max-width: 440px; opacity: 0; transform: translate3d(0, 10px, 0); transition: opacity 900ms ease, transform 1100ms cubic-bezier(.2,.65,.2,1); }
+.world-one__beat { position: absolute; top: 43%; left: 6.1%; max-width: min(560px, 43vw); opacity: 0; transform: translate3d(0, 10px, 0); transition: opacity 900ms ease, transform 1100ms cubic-bezier(.2,.65,.2,1); }
 .world-one__beat.is-visible { opacity: 1; transform: none; }
-.world-one__beat--right { left: auto; right: 7.2%; top: 50%; }
-.world-one__beat[data-beat="final"] { top: 70%; max-width: 500px; }
+.world-one__beat--right { left: auto; right: 6.4%; top: 52%; }
+.world-one__beat[data-beat="collective"], .world-one__beat[data-beat="contrast"], .world-one__beat[data-beat="question"], .world-one__beat[data-beat="human"], .world-one__beat[data-beat="final"] { top: 52%; }
 .world-one__beat[data-beat="chapter"] { top: 27%; max-width: min(720px, 54vw); transition-duration: 900ms; }
 .world-one__beat p, .world-one__beat h2, .world-one__beat blockquote, .world-one__beat small, .world-one__beat cite { margin: 0; font-weight: 300; font-style: normal; }
 .world-one__beat p { font: 300 19px/1.52 Georgia, "Songti SC", serif; letter-spacing: .1em; }
@@ -35,6 +35,8 @@ body.world-one-active { overflow: hidden; cursor: none; }
 .world-one__beat i { display: block; width: 18px; height: 1px; margin: 15px 0 20px; background: rgba(255,255,255,.5); }
 .world-one__beat blockquote { font: 300 clamp(18px, 1.5vw, 26px)/1.6 Georgia, "Songti SC", serif; letter-spacing: .12em; }
 .world-one__beat cite { display: block; margin-top: 12px; font: italic 13px/1.2 Georgia, serif; letter-spacing: .08em; }
+.world-one__beat .world-one__coordinate { max-width: 500px; margin-top: 22px; color: rgba(211,224,182,.5); font: 400 9px/1.65 Arial, sans-serif; letter-spacing: .16em; }
+.world-one__beat[data-beat="final"] blockquote { max-width: 520px; margin-top: 20px; color: rgba(241,244,228,.76); font-size: clamp(15px, 1.08vw, 19px); line-height: 1.7; }
 .world-one__hint { position: absolute; right: 34px; bottom: 28px; z-index: 3; max-width: min(620px, 70vw); color: rgba(255,255,255,.58); font: 300 12px/1.5 Georgia, "Songti SC", serif; letter-spacing: .12em; opacity: 0; transition: opacity 600ms ease; }
 .world-one__hint span { margin-left: 14px; font-size: 7px; letter-spacing: .3em; }
 .world-one[data-phase="local"] .world-one__hint, .world-one[data-phase="network"] .world-one__hint { opacity: 1; }
@@ -43,6 +45,36 @@ body.world-one-active { overflow: hidden; cursor: none; }
 .world-one__cursor i { position: absolute; inset: 12px; border-radius: 50%; background: #f2f8d8; box-shadow: 0 0 12px 3px rgba(177,214,111,.68); }
 .world-one__cursor.is-active { animation: green-body-cursor 520ms ease-out; }
 @keyframes green-body-cursor { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.48); } 100% { box-shadow: 0 0 0 30px rgba(255,255,255,0); } }
+
+.world-one__source-trigger { position: absolute; z-index: 7; right: 34px; bottom: 28px; width: min(330px, 28vw); border: 0; border-top: 1px solid rgba(214,231,174,.34); padding: 13px 0 0; color: rgba(239,244,222,.74); background: none; text-align: left; opacity: 0; transform: translateY(8px); transition: opacity 900ms ease, transform 1100ms cubic-bezier(.2,.65,.2,1), color 260ms ease; pointer-events: none; cursor: pointer; }
+.world-one__source-trigger[hidden], .world-one__source-scrim[hidden], .world-one__sources[hidden] { display: none; }
+.world-one__source-trigger.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.world-one__source-trigger:hover { color: rgba(251,253,239,.98); }
+.world-one__source-trigger small, .world-one__source-trigger span { display: block; }
+.world-one__source-trigger small { margin-bottom: 8px; color: rgba(190,213,132,.54); font: 500 7px/1.4 Arial, sans-serif; letter-spacing: .3em; }
+.world-one__source-trigger span { font: 300 clamp(14px, 1.02vw, 17px)/1.6 Georgia, "Songti SC", serif; letter-spacing: .1em; }
+.world-one__source-scrim { position: absolute; z-index: 7; inset: 0; background: rgba(0,4,1,.32); opacity: 0; transition: opacity 420ms ease; pointer-events: none; }
+.world-one__source-scrim.is-visible { opacity: 1; pointer-events: auto; }
+.world-one__sources { position: absolute; z-index: 8; top: 0; right: 0; width: min(470px, 42vw); height: 100%; box-sizing: border-box; overflow: auto; padding: 56px 50px 42px; color: rgba(239,241,228,.86); background: linear-gradient(180deg, rgba(4,12,5,.97), rgba(1,7,3,.985)); border-left: 1px solid rgba(196,218,144,.16); box-shadow: -28px 0 80px rgba(0,0,0,.42); transform: translateX(102%); transition: transform 620ms cubic-bezier(.2,.75,.2,1); pointer-events: auto; cursor: auto; }
+.world-one__sources.is-open { transform: none; }
+.world-one__sources header { position: relative; padding-right: 46px; }
+.world-one__sources header > small { color: rgba(184,211,119,.56); font: 500 7px/1.5 Arial, sans-serif; letter-spacing: .3em; }
+.world-one__sources h3 { margin: 13px 0 16px; font: 300 clamp(22px, 1.7vw, 29px)/1.35 Georgia, "Songti SC", serif; letter-spacing: .09em; }
+.world-one__sources header p, .world-one__sources footer p { margin: 0; color: rgba(228,232,213,.58); font: 300 12px/1.9 Georgia, "Songti SC", serif; letter-spacing: .07em; }
+.world-one__sources header button { position: absolute; top: -7px; right: 0; border: 0; padding: 8px 0 8px 12px; color: rgba(238,242,222,.54); background: none; font: 500 8px/1 Arial, sans-serif; letter-spacing: .18em; cursor: pointer; }
+.world-one__source-list { margin-top: 34px; }
+.world-one__source { padding: 24px 0 28px; border-top: 1px solid rgba(203,222,157,.14); }
+.world-one__source > small { color: rgba(183,207,126,.5); font: 500 7px/1.5 Arial, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.world-one__source h4 { margin: 10px 0 4px; font: 300 20px/1.4 Georgia, "Songti SC", serif; letter-spacing: .08em; }
+.world-one__source h4 span { display: block; margin-top: 2px; color: rgba(224,229,208,.45); font: italic 11px/1.5 Georgia, serif; letter-spacing: .06em; }
+.world-one__source p, .world-one__source blockquote { margin: 13px 0 0; color: rgba(230,234,216,.68); font: 300 12px/1.8 Georgia, "Songti SC", serif; letter-spacing: .055em; white-space: pre-line; }
+.world-one__source .world-one__source-creator { margin-top: 7px; color: rgba(225,230,210,.42); font-size: 10px; }
+.world-one__source blockquote { padding-left: 14px; border-left: 1px solid rgba(190,216,128,.28); color: rgba(238,242,223,.77); }
+.world-one__source a { display: inline-block; margin-top: 15px; color: rgba(201,223,144,.68); font: 500 8px/1.5 Arial, sans-serif; letter-spacing: .17em; text-decoration: none; }
+.world-one__source a:hover { color: rgba(233,244,199,.98); }
+.world-one__sources footer { padding-top: 8px; border-top: 1px solid rgba(203,222,157,.14); }
+.world-one__sources footer button { margin-top: 20px; border: 1px solid rgba(199,220,148,.28); padding: 11px 14px; color: rgba(240,244,225,.75); background: rgba(173,207,102,.05); font: 500 8px/1 Arial, sans-serif; letter-spacing: .18em; cursor: pointer; }
+.world-one[data-sources-open="true"] .world-one__cursor { opacity: 0; }
 
 .journey-bridge {
   --journey-copy-opacity: 0;

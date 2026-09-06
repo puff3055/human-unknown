@@ -10,7 +10,13 @@
   const hint = document.getElementById('worldHint');
   const status = document.getElementById('worldStatus');
   const returnButton = document.getElementById('worldReturn');
+  const sourcesToggle = document.getElementById('worldSourcesToggle');
+  const sourcesPanel = document.getElementById('worldSourcesPanel');
+  const sourcesScrim = document.getElementById('worldSourcesScrim');
+  const sourcesClose = document.getElementById('worldSourcesClose');
+  const sourcesContinue = document.getElementById('worldSourcesContinue');
   const beats = new Map([...root.querySelectorAll('[data-beat]')].map((node) => [node.dataset.beat, node]));
+  const narrative = window.GreenBodyNarrative || { hints: {} };
   const soundscape = window.WorldOneSoundscape ? new window.WorldOneSoundscape() : null;
   const reduceMotion = document.documentElement.dataset.motion === 'reduced';
   const TAU = Math.PI * 2;
@@ -43,7 +49,12 @@
     arrivalCount: 0,
     organArrivalCount: 0,
     crossPlantCount: 0,
+    hereShown: false,
     thereShown: false,
+    narrativeBeat: '',
+    wholeStartedAt: 0,
+    sourcesReady: false,
+    sourcesOpen: false,
     lastActivityAt: 0,
     firstInteractionAt: 0,
     userInteractionCount: 0,
@@ -288,6 +299,71 @@
 
   function showBeat(name) {
     beats.forEach((beat, key) => beat.classList.toggle('is-visible', key === name || (Boolean(name) && key === 'chapter' && name !== 'falling')));
+    state.narrativeBeat = name || '';
+    root.dataset.narrative = name || 'none';
+  }
+
+  function setHint(copy, english) {
+    hint.firstChild.nodeValue = `${copy} `;
+    const translation = hint.querySelector('span');
+    if (translation && english) translation.textContent = english;
+  }
+
+  function closeSources() {
+    if (!state.sourcesOpen) return;
+    state.sourcesOpen = false;
+    root.dataset.sourcesOpen = 'false';
+    sourcesToggle?.setAttribute('aria-expanded', 'false');
+    sourcesPanel?.setAttribute('aria-hidden', 'true');
+    sourcesPanel?.classList.remove('is-open');
+    sourcesScrim?.classList.remove('is-visible');
+    window.setTimeout(() => {
+      if (state.sourcesOpen) return;
+      if (sourcesPanel) sourcesPanel.hidden = true;
+      if (sourcesScrim) sourcesScrim.hidden = true;
+    }, 640);
+  }
+
+  function openSources() {
+    if (!state.sourcesReady || !sourcesPanel || !sourcesScrim) return;
+    state.sourcesOpen = true;
+    root.dataset.sourcesOpen = 'true';
+    sourcesToggle?.setAttribute('aria-expanded', 'true');
+    sourcesPanel.hidden = false;
+    sourcesScrim.hidden = false;
+    requestAnimationFrame(() => {
+      sourcesPanel.classList.add('is-open');
+      sourcesScrim.classList.add('is-visible');
+      sourcesPanel.setAttribute('aria-hidden', 'false');
+      sourcesClose?.focus({ preventScroll: true });
+    });
+  }
+
+  function revealSources() {
+    if (state.sourcesReady || !sourcesToggle) return;
+    state.sourcesReady = true;
+    sourcesToggle.hidden = false;
+    requestAnimationFrame(() => sourcesToggle.classList.add('is-visible'));
+  }
+
+  function resetSources() {
+    state.sourcesReady = false;
+    state.sourcesOpen = false;
+    root.dataset.sourcesOpen = 'false';
+    if (sourcesToggle) {
+      sourcesToggle.hidden = true;
+      sourcesToggle.classList.remove('is-visible');
+      sourcesToggle.setAttribute('aria-expanded', 'false');
+    }
+    if (sourcesPanel) {
+      sourcesPanel.hidden = true;
+      sourcesPanel.classList.remove('is-open');
+      sourcesPanel.setAttribute('aria-hidden', 'true');
+    }
+    if (sourcesScrim) {
+      sourcesScrim.hidden = true;
+      sourcesScrim.classList.remove('is-visible');
+    }
   }
 
   function setPhase(phase) {
@@ -298,12 +374,13 @@
     if (phase === 'chapter') showBeat('chapter');
     if (phase === 'local') {
       showBeat('chapter');
-      hint.firstChild.nodeValue = '移动你的感知，看看哪里会注意到你。 ';
+      setHint(narrative.hints.local || '移动你的感知，看看哪里会注意到你。', 'MOVE TO EXPLORE');
     }
-    if (phase === 'network') hint.firstChild.nodeValue = '信号正在沿着同一个身体，去往更远的地方。 ';
+    if (phase === 'network') setHint(narrative.hints.network || '感知正在沿着同一个身体，去往更远的地方。', 'SIGNAL MOVING THROUGH ONE BODY');
     if (phase === 'whole') {
-      hint.firstChild.nodeValue = '没有一处，独自活着。 ';
-      if (!state.completeAt) state.completeAt = performance.now() + 4200;
+      setHint(narrative.hints.whole || '现在，试着从许多地方感受同一个“我”。', 'FEEL ONE SELF FROM MANY PLACES');
+      if (!state.wholeStartedAt) state.wholeStartedAt = performance.now();
+      if (!state.completeAt) state.completeAt = state.wholeStartedAt + 31000;
     }
     status.textContent = phase === 'network' ? '你触发的信息正在沿根、菌丝与叶脉向远处传导。' : '';
   }
@@ -505,6 +582,18 @@
     return cascade.id;
   }
 
+  function updateNarrative(now) {
+    if (state.phase !== 'whole' || !state.wholeStartedAt) return;
+    const age = now - state.wholeStartedAt;
+    let beat = 'collective';
+    if (age >= 4800) beat = 'contrast';
+    if (age >= 10400) beat = 'question';
+    if (age >= 16600) beat = 'human';
+    if (age >= 23400) beat = 'final';
+    if (state.narrativeBeat !== beat) showBeat(beat);
+    if (age >= 28600) revealSources();
+  }
+
   function update(delta, now) {
     if (state.active && state.phase === 'arrival') {
       if (!state.entryLanded && now >= state.entryLandsAt) {
@@ -571,10 +660,12 @@
     )) {
       if (state.phase !== 'whole') {
         setPhase('whole');
-        showBeat('final');
+        showBeat('collective');
         state.targetReveal = 1;
       }
     }
+
+    updateNarrative(now);
 
     if (
       state.phase === 'whole'
@@ -837,7 +928,10 @@
     state.arrivalCount = 0;
     state.organArrivalCount = 0;
     state.crossPlantCount = 0;
+    state.hereShown = false;
     state.thereShown = false;
+    state.narrativeBeat = '';
+    state.wholeStartedAt = 0;
     state.firstInteractionAt = 0;
     state.userInteractionCount = 0;
     state.completeAt = 0;
@@ -850,6 +944,7 @@
     state.cascades.clear();
     state.hoveredNode = null;
     state.nodes.forEach((node) => { node.activation = 0; });
+    resetSources();
     root.dispatchEvent(new CustomEvent('greenbody:reset'));
   }
 
@@ -929,6 +1024,7 @@
     document.body.classList.remove('world-one-active');
     cursor.classList.remove('is-visible', 'is-active');
     if (soundscape) soundscape.setActive(false);
+    resetSources();
     showBeat('');
     root.dispatchEvent(new CustomEvent('greenbody:exit', {
       detail: { destination: options.destination || 'home' },
@@ -947,6 +1043,11 @@
     cursor.classList.toggle('is-visible', interactive);
     if (!interactive) return;
     state.hoveredNode = nearestNode(event.clientX, event.clientY);
+    if (state.phase === 'local' && state.hoveredNode && !state.hereShown) {
+      state.hereShown = true;
+      showBeat('here');
+      setHint(narrative.hints.touched || '点击，把你的感知送进去。', 'CLICK TO SEND THE SIGNAL');
+    }
   }, { passive: true });
   addEventListener('pointerleave', () => {
     state.pointer.visible = false;
@@ -954,12 +1055,16 @@
     cursor.classList.remove('is-visible');
   });
   addEventListener('pointerdown', (event) => {
-    if (!state.active || event.target === returnButton) return;
+    if (!state.active || event.target === returnButton || event.target.closest?.('.world-one__source-trigger, .world-one__sources')) return;
     if (state.phase !== 'local' && state.phase !== 'network' && state.phase !== 'whole') return;
     const node = nearestNode(event.clientX, event.clientY, false);
     ignite(node, { x: event.clientX, y: event.clientY }, { source: 'user' });
   }, { passive: true });
   addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && state.sourcesOpen) {
+      closeSources();
+      return;
+    }
     if (event.key === 'Escape' && state.active) exit();
     if (
       (event.key === 'Enter' || event.key === ' ')
@@ -975,6 +1080,10 @@
   });
   addEventListener('resize', resize);
   returnButton.addEventListener('click', () => exit({ destination: 'home' }));
+  sourcesToggle?.addEventListener('click', openSources);
+  sourcesClose?.addEventListener('click', closeSources);
+  sourcesContinue?.addEventListener('click', closeSources);
+  sourcesScrim?.addEventListener('click', closeSources);
 
   buildNetwork();
   resize();
@@ -1001,6 +1110,9 @@
       crossPlantCount: state.crossPlantCount,
       userInteractions: state.userInteractionCount,
       complete: state.completeDispatched,
+      narrative: state.narrativeBeat,
+      sourcesReady: state.sourcesReady,
+      sourcesOpen: state.sourcesOpen,
       networkNodes: state.nodes.length,
       networkEdges: state.edges.length,
       sound: soundscape ? soundscape.getState() : null,

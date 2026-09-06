@@ -22,7 +22,7 @@ test('chapter background, hover light, click propagation, and return', async ({ 
   await expect.poll(async () => page.locator('#greenBodyLivingCanvas').evaluate((canvas) => canvas.width)).toBeGreaterThan(1600);
 
   await page.waitForTimeout(2400);
-  await expect(page.locator('#greenBodyCanvas')).toHaveAttribute('data-pulses', '0');
+  await expect(page.locator('#greenBodyCanvas')).toHaveAttribute('data-user-interactions', '0');
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-network-nodes'))).toBeGreaterThan(45);
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-network-edges'))).toBeGreaterThan(55);
   await page.screenshot({ path: 'qa/green-body/idle-living.png' });
@@ -44,11 +44,23 @@ test('chapter background, hover light, click propagation, and return', async ({ 
   await page.screenshot({ path: 'qa/green-body/far-response-green.png' });
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-arrivals')), { timeout: 14000 }).toBeGreaterThan(55);
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-organ-arrivals')), { timeout: 14000 }).toBeGreaterThan(12);
-  await expect(page.locator('[data-beat="final"]')).toHaveClass(/is-visible/, { timeout: 12000 });
+  await expect(page.locator('[data-beat="collective"]')).toHaveClass(/is-visible/, { timeout: 12000 });
+  await expect(page.locator('[data-beat="final"]')).toHaveClass(/is-visible/, { timeout: 36000 });
+  await expect(page.locator('#worldSourcesToggle')).toBeVisible({ timeout: 8000 });
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-queued-pulses')), { timeout: 16000 }).toBe(0);
   await expect.poll(async () => Number(await page.locator('#greenBodyCanvas').getAttribute('data-traces')), { timeout: 4000 }).toBe(0);
   await expect(page.locator('[data-beat="chapter"]')).toHaveClass(/is-visible/);
 
+  await page.locator('#worldSourcesToggle').click();
+  await expect(page.locator('#worldSourcesPanel')).toBeVisible();
+  await expect(page.locator('.world-one__source')).toHaveCount(4);
+  await expect(page.locator('#worldSourcesPanel')).toContainText('同一个意识同时活在许多生命里');
+  await page.waitForTimeout(750);
+  await page.screenshot({ path: 'qa/green-body/thought-coordinates.png' });
+  await page.locator('#worldSourcesContinue').click();
+  await expect(page.locator('#worldSourcesPanel')).toBeHidden({ timeout: 1200 });
+
+  await page.evaluate(() => history.replaceState({}, '', location.pathname));
   await page.locator('#worldReturn').click();
   await expect(page.locator('#worldOne')).toBeHidden({ timeout: 1200 });
   expect(errors).toEqual([]);
