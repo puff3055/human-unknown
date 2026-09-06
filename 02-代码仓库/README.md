@@ -4,7 +4,7 @@
 
 开始代码任务前先阅读根目录 [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)。它记录当前分支、标签、已实现能力和验收缺口；不要仅凭文件更新时间判断版本。
 
-下面的“当前运行入口”描述 `codex/home-green-bridge`／`home-green-v0.1.0-rc.1`。受保护的来源是 V4.5.3 首页 `e894154` 和世界 1 实时网络 `968af59`；不要为了后续世界重写已经验证的首页或第一章。
+下面的“当前运行入口”描述 `codex/green-body-narrative`／`green-body-narrative-v0.2.0-rc.1`。上一叙事回退点是 `green-body-narrative-v0.1.0-rc.1`；受保护的来源仍是 V4.5.3 首页 `e894154` 和世界 1 实时网络 `968af59`。
 
 ## 当前运行入口
 
@@ -17,12 +17,12 @@
 - `living-soundscape.js`：V4.2 继承的可感窄带低频声场、默认 `armed` 与一次手势启声。
 - `style.css`：页面布局、标题、提示与声音开关样式。
 - `journey-controller.js`：监听首页进入／出口事件，用同一个光点完成一次硬切并抵达世界 1 的真实节点。
-- `green-body-narrative.js`：集中维护世界 1 的分阶段旁白、操作提示、思想坐标和经过来源核对的延伸推荐。
+- `green-body-narrative.js`：集中维护世界 1 的完整分阶段旁白、操作提示、行内「灵感来源」与推荐阅读；作品条目写明类型、作者／导演和一句介绍。
 - `green-body-realtime.js`：世界 1 的隐藏传导图、真实抵达、器官回应、章节状态与返回契约。
 - `green-body-living.js`：基于世界 1 母版的实时生命纹理。
 - `green-body-realtime.css`：世界 1 与跨世界光点的舞台、文字和动效样式。
 - `world-one-soundscape.js`：只在世界 1 激活后运行的章节声场。
-- `design-qa.md`：当前已完成和仍缺失的验证。
+- `../design-qa.md`：当前叙事 UI 的参考图对照、浏览器验收与最终结果；本目录内旧 `design-qa.md` 保留历史光标 QA。
 - `qa/homepage-v4-contract-test.mjs`：V4 可执行交互状态机契约。
 - `qa/soundscape-contract-test.mjs`：V4 声音图与开关契约。
 - `qa/light-cursor-contract-test.mjs`：光标双形态、跟手、惯性、按压、吸收、素材和 reduced-motion 契约。

@@ -12,7 +12,7 @@
   <link rel="preload" as="image" href="assets/cursor-light-point.png">
   <link rel="preload" as="image" href="assets/world1-update-2-background@2x.png">
   <link rel="stylesheet" href="style.css?v=4.5.3-rc.1">
-  <link rel="stylesheet" href="green-body-realtime.css?v=green-body-narrative-0.1.0">
+  <link rel="stylesheet" href="green-body-realtime.css?v=green-body-narrative-0.2.0">
 </head>
 <body>
   <main
@@ -129,6 +129,7 @@
     data-active="false"
     data-entry="idle"
     data-phase="prepared"
+    data-chapter-stage="hidden"
     aria-label="CHAPTER 01 / THE GREEN BODY｜群体生命"
     aria-hidden="true"
     tabindex="-1"
@@ -158,17 +159,22 @@
       <div class="world-one__beat world-one__beat--right" data-beat="final" data-copy-key="final"></div>
     </div>
     <div class="world-one__hint" id="worldHint">移动你的感知，看看哪里会注意到你。 <span>MOVE TO EXPLORE</span></div>
+    <button class="world-one__narrative-continue" id="worldNarrativeContinue" type="button" hidden>
+      <span>继续</span>
+      <small>CONTINUE</small>
+    </button>
     <button class="world-one__source-trigger" id="worldSourcesToggle" type="button" aria-expanded="false" aria-controls="worldSourcesPanel" hidden>
-      <small>THOUGHT COORDINATES · 04</small>
+      <small>灵感来源 · 4 部作品</small>
       <span>这次相遇，从哪里生长出来？</span>
     </button>
     <div class="world-one__source-scrim" id="worldSourcesScrim" hidden></div>
-    <aside class="world-one__sources" id="worldSourcesPanel" aria-label="本章思想坐标" aria-hidden="true" hidden>
+    <aside class="world-one__sources" id="worldSourcesPanel" aria-label="本章灵感来源与推荐阅读" aria-hidden="true" hidden>
       <header>
-        <small>CHAPTER 01 · THOUGHT COORDINATES</small>
-        <h3>这次相遇，从哪里生长出来？</h3>
+        <small>CHAPTER 01 · INSPIRATION</small>
+        <h3>灵感来源与推荐阅读</h3>
+        <h4>这次相遇，从哪里生长出来？</h4>
         <p>现实中的植物会感知、回应并传递信号；“同一个意识同时活在许多生命里”，是本章由此延伸的科幻想象。</p>
-        <button id="worldSourcesClose" type="button" aria-label="关闭思想坐标">关闭</button>
+        <button id="worldSourcesClose" type="button" aria-label="关闭灵感来源">关闭</button>
       </header>
       <div class="world-one__source-list" id="worldSourcesList"></div>
       <footer>
@@ -205,8 +211,8 @@
   <script src="light-cursor.js?v=4.5.3-rc.1"></script>
   <script src="world-one-soundscape.js?v=home-green-0.1.0-rc.1"></script>
   <script src="green-body-living.js?v=home-green-0.1.0-rc.1"></script>
-  <script src="green-body-narrative.js?v=green-body-narrative-0.1.0"></script>
-  <script src="green-body-realtime.js?v=green-body-narrative-0.1.0"></script>
+  <script src="green-body-narrative.js?v=green-body-narrative-0.2.0"></script>
+  <script src="green-body-realtime.js?v=green-body-narrative-0.2.0"></script>
   <script src="journey-controller.js?v=home-green-0.1.0-rc.1"></script>
   <script src="app.js?v=4.5.3-rc.1"></script>
 </body>

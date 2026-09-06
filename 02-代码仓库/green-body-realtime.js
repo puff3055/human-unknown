@@ -10,6 +10,7 @@
   const hint = document.getElementById('worldHint');
   const status = document.getElementById('worldStatus');
   const returnButton = document.getElementById('worldReturn');
+  const narrativeContinue = document.getElementById('worldNarrativeContinue');
   const sourcesToggle = document.getElementById('worldSourcesToggle');
   const sourcesPanel = document.getElementById('worldSourcesPanel');
   const sourcesScrim = document.getElementById('worldSourcesScrim');
@@ -21,6 +22,7 @@
   const reduceMotion = document.documentElement.dataset.motion === 'reduced';
   const TAU = Math.PI * 2;
   const IMAGE_ASPECT = 1672 / 941;
+  const NARRATIVE_SEQUENCE = ['collective', 'contrast', 'question', 'human', 'final'];
 
   const state = {
     active: false,
@@ -52,6 +54,8 @@
     hereShown: false,
     thereShown: false,
     narrativeBeat: '',
+    narrativeReady: false,
+    narrativeStep: -1,
     wholeStartedAt: 0,
     sourcesReady: false,
     sourcesOpen: false,
@@ -61,6 +65,7 @@
     entryNodeKey: 'spore-center-low',
     entryLandsAt: 0,
     entryChapterAt: 0,
+    entryDockAt: 0,
     entryLocalAt: 0,
     entryLanded: false,
     completeAt: 0,
@@ -303,6 +308,53 @@
     root.dataset.narrative = name || 'none';
   }
 
+  function setChapterStage(stage) {
+    root.dataset.chapterStage = stage;
+  }
+
+  function hideNarrativeContinue() {
+    root.dataset.awaitingNarrative = 'false';
+    if (!narrativeContinue) return;
+    narrativeContinue.classList.remove('is-visible');
+    window.setTimeout(() => {
+      if (root.dataset.awaitingNarrative === 'false') narrativeContinue.hidden = true;
+    }, 480);
+  }
+
+  function showNarrativeContinue({ sources = false } = {}) {
+    if (!narrativeContinue) return;
+    const label = narrativeContinue.querySelector('span');
+    const english = narrativeContinue.querySelector('small');
+    if (label) label.textContent = sources ? '查看灵感来源与推荐阅读' : '继续';
+    if (english) english.textContent = sources ? 'INSPIRATION & READING' : 'CONTINUE';
+    narrativeContinue.hidden = false;
+    root.dataset.awaitingNarrative = 'true';
+    requestAnimationFrame(() => narrativeContinue.classList.add('is-visible'));
+  }
+
+  function advanceNarrative() {
+    if (!state.narrativeReady) return;
+    if (state.phase === 'network') {
+      state.narrativeStep = 0;
+      setPhase('whole');
+      showBeat(NARRATIVE_SEQUENCE[state.narrativeStep]);
+      showNarrativeContinue();
+      state.targetReveal = 1;
+      return;
+    }
+    if (state.phase !== 'whole' || state.narrativeStep < 0) return;
+    if (state.narrativeStep < NARRATIVE_SEQUENCE.length - 1) {
+      state.narrativeStep += 1;
+      showBeat(NARRATIVE_SEQUENCE[state.narrativeStep]);
+      showNarrativeContinue({ sources: state.narrativeStep === NARRATIVE_SEQUENCE.length - 1 });
+      return;
+    }
+    hideNarrativeContinue();
+    revealSources();
+    openSources();
+    state.completeAt = performance.now();
+  }
+
   function setHint(copy, english) {
     hint.firstChild.nodeValue = `${copy} `;
     const translation = hint.querySelector('span');
@@ -370,9 +422,16 @@
     if (state.phase === phase) return;
     state.phase = phase;
     root.dataset.phase = phase;
-    if (phase === 'prepared' || phase === 'arrival') showBeat('');
-    if (phase === 'chapter') showBeat('chapter');
+    if (phase === 'prepared' || phase === 'arrival') {
+      showBeat('');
+      setChapterStage('hidden');
+    }
+    if (phase === 'chapter') {
+      setChapterStage('centered');
+      showBeat('chapter');
+    }
     if (phase === 'local') {
+      setChapterStage('docked');
       showBeat('chapter');
       setHint(narrative.hints.local || '移动你的感知，看看哪里会注意到你。', 'MOVE TO EXPLORE');
     }
@@ -380,7 +439,6 @@
     if (phase === 'whole') {
       setHint(narrative.hints.whole || '现在，试着从许多地方感受同一个“我”。', 'FEEL ONE SELF FROM MANY PLACES');
       if (!state.wholeStartedAt) state.wholeStartedAt = performance.now();
-      if (!state.completeAt) state.completeAt = state.wholeStartedAt + 31000;
     }
     status.textContent = phase === 'network' ? '你触发的信息正在沿根、菌丝与叶脉向远处传导。' : '';
   }
@@ -577,21 +635,18 @@
     }
     if (!options.preservePhase) {
       setPhase('network');
-      showBeat('here');
+      if (!state.thereShown && !state.narrativeReady) showBeat('here');
     }
     return cascade.id;
   }
 
-  function updateNarrative(now) {
-    if (state.phase !== 'whole' || !state.wholeStartedAt) return;
-    const age = now - state.wholeStartedAt;
-    let beat = 'collective';
-    if (age >= 4800) beat = 'contrast';
-    if (age >= 10400) beat = 'question';
-    if (age >= 16600) beat = 'human';
-    if (age >= 23400) beat = 'final';
-    if (state.narrativeBeat !== beat) showBeat(beat);
-    if (age >= 28600) revealSources();
+  function updateNarrative() {
+    if (
+      state.phase === 'network'
+      && state.narrativeReady
+      && state.thereShown
+      && root.dataset.awaitingNarrative !== 'true'
+    ) showNarrativeContinue();
   }
 
   function update(delta, now) {
@@ -610,6 +665,12 @@
       }
       if (state.entryLanded && now >= state.entryChapterAt) setPhase('chapter');
     }
+    if (
+      state.active
+      && state.phase === 'chapter'
+      && now >= state.entryDockAt
+      && root.dataset.chapterStage !== 'docked'
+    ) setChapterStage('docked');
     if (state.active && state.phase === 'chapter' && now >= state.entryLocalAt) {
       root.dataset.entry = 'active';
       setPhase('local');
@@ -654,15 +715,11 @@
       state.thereShown = true;
       showBeat('there');
     }
-    if (state.firstInteractionAt && (
+    if (!state.narrativeReady && state.firstInteractionAt && (
       (state.organArrivalCount >= 5 && state.crossPlantCount >= 2 && interactionAge > 7200) ||
       interactionAge > 18000
     )) {
-      if (state.phase !== 'whole') {
-        setPhase('whole');
-        showBeat('collective');
-        state.targetReveal = 1;
-      }
+      state.narrativeReady = true;
     }
 
     updateNarrative(now);
@@ -931,6 +988,8 @@
     state.hereShown = false;
     state.thereShown = false;
     state.narrativeBeat = '';
+    state.narrativeReady = false;
+    state.narrativeStep = -1;
     state.wholeStartedAt = 0;
     state.firstInteractionAt = 0;
     state.userInteractionCount = 0;
@@ -944,6 +1003,8 @@
     state.cascades.clear();
     state.hoveredNode = null;
     state.nodes.forEach((node) => { node.activation = 0; });
+    setChapterStage('hidden');
+    hideNarrativeContinue();
     resetSources();
     root.dispatchEvent(new CustomEvent('greenbody:reset'));
   }
@@ -978,7 +1039,8 @@
     state.entryLanded = false;
     state.entryLandsAt = now + arrivalDelayMs;
     state.entryChapterAt = state.entryLandsAt + 520;
-    state.entryLocalAt = state.entryChapterAt + 2600;
+    state.entryDockAt = state.entryChapterAt + 2500;
+    state.entryLocalAt = state.entryDockAt + 1250;
     root.dataset.active = 'true';
     root.dataset.entry = 'crossing';
     root.setAttribute('aria-hidden', 'false');
@@ -1025,6 +1087,7 @@
     cursor.classList.remove('is-visible', 'is-active');
     if (soundscape) soundscape.setActive(false);
     resetSources();
+    hideNarrativeContinue();
     showBeat('');
     root.dispatchEvent(new CustomEvent('greenbody:exit', {
       detail: { destination: options.destination || 'home' },
@@ -1055,7 +1118,7 @@
     cursor.classList.remove('is-visible');
   });
   addEventListener('pointerdown', (event) => {
-    if (!state.active || event.target === returnButton || event.target.closest?.('.world-one__source-trigger, .world-one__sources')) return;
+    if (!state.active || event.target === returnButton || event.target.closest?.('.world-one__narrative-continue, .world-one__source-trigger, .world-one__sources')) return;
     if (state.phase !== 'local' && state.phase !== 'network' && state.phase !== 'whole') return;
     const node = nearestNode(event.clientX, event.clientY, false);
     ignite(node, { x: event.clientX, y: event.clientY }, { source: 'user' });
@@ -1066,6 +1129,7 @@
       return;
     }
     if (event.key === 'Escape' && state.active) exit();
+    if (event.target.closest?.('.world-one__narrative-continue, .world-one__source-trigger, .world-one__sources')) return;
     if (
       (event.key === 'Enter' || event.key === ' ')
       && state.active
@@ -1080,6 +1144,7 @@
   });
   addEventListener('resize', resize);
   returnButton.addEventListener('click', () => exit({ destination: 'home' }));
+  narrativeContinue?.addEventListener('click', advanceNarrative);
   sourcesToggle?.addEventListener('click', openSources);
   sourcesClose?.addEventListener('click', closeSources);
   sourcesContinue?.addEventListener('click', closeSources);
@@ -1111,6 +1176,8 @@
       userInteractions: state.userInteractionCount,
       complete: state.completeDispatched,
       narrative: state.narrativeBeat,
+      narrativeReady: state.narrativeReady,
+      narrativeStep: state.narrativeStep,
       sourcesReady: state.sourcesReady,
       sourcesOpen: state.sourcesOpen,
       networkNodes: state.nodes.length,
