@@ -11,8 +11,8 @@
   <link rel="preload" as="image" href="assets/cursor-light-cloud.png">
   <link rel="preload" as="image" href="assets/cursor-light-point.png">
   <link rel="preload" as="image" href="assets/world1-update-2-background@2x.png">
-  <link rel="stylesheet" href="style.css?v=interaction-sound-0.1.0-rc.1">
-  <link rel="stylesheet" href="green-body-realtime.css?v=interaction-sound-0.1.0-rc.1">
+  <link rel="stylesheet" href="style.css?v=full-journey-0.1.0-rc.1">
+  <link rel="stylesheet" href="green-body-realtime.css?v=full-journey-0.1.0-rc.1">
 </head>
 <body>
   <main
@@ -61,7 +61,7 @@
     <span class="sound-prompt is-visible" id="soundPrompt" aria-hidden="true">轻触开启声音</span>
     <span class="visually-hidden" id="soundStatus" aria-live="polite">声音等待触碰开启</span>
     <span class="visually-hidden" id="contactInstructions">
-      按照页面文字移动光标。当“来中间，进入它的世界”完整显示后，在中央瞳孔内连续停留三秒完成接触。使用键盘时，按住回车键或空格键。
+      按照页面文字移动光标。当“来中间，进入它的世界”完整显示后，在中央瞳孔内连续停留三秒完成接触。
     </span>
 
     <header class="identity" aria-label="HUMAN UNKNOWN">
@@ -129,6 +129,7 @@
     data-active="false"
     data-entry="idle"
     data-phase="prepared"
+    data-chapter-stage="hidden"
     aria-label="CHAPTER 01 / THE GREEN BODY｜群体生命"
     aria-hidden="true"
     tabindex="-1"
@@ -159,13 +160,40 @@
         <h2>THE GREEN BODY</h2>
         <p>群体生命</p>
         <i></i>
-        <blockquote>“我”一定有明确边界吗？</blockquote>
+        <blockquote>“我”一定要有明确的边界吗？</blockquote>
       </div>
-      <div class="world-one__beat world-one__beat--right" data-beat="here"><p>这里感知到了你。</p><small>THIS PLACE HAS FELT YOU.</small></div>
-      <div class="world-one__beat world-one__beat--right" data-beat="there"><p>那里，<br>也是你。</p><small>THERE,<br>IT IS ALSO YOU.</small></div>
-      <div class="world-one__beat world-one__beat--right" data-beat="final"><p>如果整个生态网络<br>才是意识的尺度呢？</p><small>IF THE ENTIRE ECOLOGICAL NETWORK<br>IS THE TRUE SCALE OF CONSCIOUSNESS?</small><cite>——《Avatar》</cite></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="here" data-copy-key="here"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="there" data-copy-key="there"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="collective" data-copy-key="collective"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="contrast" data-copy-key="contrast"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="question" data-copy-key="question"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="human" data-copy-key="human"></div>
+      <div class="world-one__beat world-one__beat--right" data-beat="final" data-copy-key="final"></div>
     </div>
     <div class="world-one__hint" id="worldHint">移动你的感知，看看哪里会注意到你。 <span>MOVE TO EXPLORE</span></div>
+    <button class="world-one__narrative-continue" id="worldNarrativeContinue" type="button" hidden>
+      <span>继续</span>
+      <small>CONTINUE</small>
+    </button>
+    <button class="world-one__source-trigger" id="worldSourcesToggle" type="button" aria-expanded="false" aria-controls="worldSourcesPanel" hidden>
+      <small>灵感来源 · 4 部作品</small>
+      <span>这次相遇，从哪里生长出来？</span>
+    </button>
+    <div class="world-one__source-scrim" id="worldSourcesScrim" hidden></div>
+    <aside class="world-one__sources" id="worldSourcesPanel" aria-label="本章灵感来源与推荐阅读" aria-hidden="true" hidden>
+      <header>
+        <small>CHAPTER 01 · INSPIRATION</small>
+        <h3>灵感来源与推荐阅读</h3>
+        <h4>这次相遇，从哪里生长出来？</h4>
+        <p>现实中的植物会感知、回应并传递信号；“同一个意识同时活在许多生命里”，是本章由此延伸的科幻想象。</p>
+        <button id="worldSourcesClose" type="button" aria-label="关闭灵感来源">关闭</button>
+      </header>
+      <div class="world-one__source-list" id="worldSourcesList"></div>
+      <footer>
+        <p>这些作品没有替你回答“我在哪里”。它们只是把这个问题带得更远。</p>
+        <button id="worldSourcesContinue" type="button">继续感知这个世界</button>
+      </footer>
+    </aside>
     <div class="world-one__cursor" id="worldCursor" aria-hidden="true"><i></i></div>
     <p class="visually-hidden" id="worldStatus" aria-live="polite" aria-atomic="true"></p>
   </section>
@@ -189,14 +217,15 @@
   </div>
 
   <noscript>请启用 JavaScript，完成这次接触。</noscript>
-  <script src="encounter-machine.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="living-nebula.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="living-soundscape.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="light-cursor.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="world-one-soundscape.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="green-body-living.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="green-body-realtime.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="journey-controller.js?v=interaction-sound-0.1.0-rc.1"></script>
-  <script src="app.js?v=interaction-sound-0.1.0-rc.1"></script>
+  <script src="encounter-machine.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="living-nebula.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="living-soundscape.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="light-cursor.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="world-one-soundscape.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="green-body-living.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="green-body-narrative.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="green-body-realtime.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="journey-controller.js?v=full-journey-0.1.0-rc.1"></script>
+  <script src="app.js?v=full-journey-0.1.0-rc.1"></script>
 </body>
 </html>

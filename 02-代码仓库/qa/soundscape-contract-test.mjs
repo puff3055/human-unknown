@@ -290,7 +290,7 @@ assert.match(html, /id="soundToggle"/);
 assert.match(html, /id="worldSoundToggle"/);
 assert.match(html, /id="soundPrompt"/);
 assert.match(html, /data-sound-state="armed"/);
-assert.match(html, /living-soundscape\.js\?v=interaction-sound-0\.1\.0-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=(?:interaction-sound-0\.1\.0-rc\.1|full-journey-0\.1\.0-rc\.1)/);
 assert.match(html, /assets\/tabler-volume\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
