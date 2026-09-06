@@ -35,7 +35,7 @@ button { font: inherit; }
 }
 
 .multiverse__canvas,
-.multiverse__network,
+.multiverse__phenomena,
 .multiverse__veil {
   position: absolute;
   inset: 0;
@@ -50,16 +50,15 @@ button { font: inherit; }
   pointer-events: none;
 }
 
-.multiverse__network {
+.multiverse__phenomena {
+  z-index: 2;
   display: block;
   pointer-events: none;
+  mix-blend-mode: screen;
 }
 
-.multiverse__network--back { z-index: 2; }
-.multiverse__network--front { z-index: 3; }
-
 .multiverse__veil {
-  z-index: 4;
+  z-index: 3;
   pointer-events: none;
   background:
     radial-gradient(ellipse at 48% 44%, transparent 0 38%, rgba(1, 2, 9, .07) 69%, rgba(0, 0, 4, .52) 100%),
@@ -68,7 +67,7 @@ button { font: inherit; }
 
 .multiverse__header {
   position: absolute;
-  z-index: 7;
+  z-index: 6;
   top: max(29px, calc(env(safe-area-inset-top) + 18px));
   left: max(37px, env(safe-area-inset-left));
   right: max(30px, env(safe-area-inset-right));
@@ -165,30 +164,30 @@ button { font: inherit; }
 
 .multiverse__voice-dock {
   position: absolute;
-  z-index: 7;
+  z-index: 6;
   left: 50%;
-  bottom: clamp(96px, 13vh, 132px);
+  bottom: clamp(72px, 10.5vh, 108px);
   display: flex;
   align-items: center;
-  width: min(720px, calc(100vw - 64px));
-  min-height: 72px;
+  width: min(570px, calc(100vw - 72px));
+  min-height: 66px;
   transform: translateX(-50%);
 }
 
 .multiverse__listen {
   position: relative;
-  flex: 0 0 62px;
-  width: 62px;
-  height: 62px;
-  background: rgba(4, 5, 15, .48);
+  flex: 0 0 60px;
+  width: 60px;
+  height: 60px;
+  background: rgba(2, 3, 10, .42);
   box-shadow: 0 0 0 0 rgba(var(--violet) / 0);
 }
 
 .multiverse__listen img {
   position: relative;
   z-index: 2;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   opacity: .94;
 }
 
@@ -204,8 +203,8 @@ button { font: inherit; }
   position: relative;
   flex: 1;
   min-width: 0;
-  height: 72px;
-  margin-left: 23px;
+  height: 66px;
+  margin-left: 19px;
 }
 
 .multiverse__voice-copy {
@@ -224,7 +223,7 @@ button { font: inherit; }
 .multiverse__voice-state {
   flex: 0 0 auto;
   color: rgba(var(--paper) / .86);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 300;
   letter-spacing: .2em;
   white-space: nowrap;
@@ -258,7 +257,7 @@ button { font: inherit; }
   bottom: 0;
   display: block;
   width: 100%;
-  height: 43px;
+  height: 40px;
   opacity: .42;
   filter: drop-shadow(0 0 5px rgba(var(--violet) / .18));
   transition: opacity 180ms ease, filter 180ms ease;
@@ -271,7 +270,9 @@ button { font: inherit; }
 
 .multiverse[data-state="listening"] .multiverse__listen,
 .multiverse[data-state="hearing"] .multiverse__listen,
-.multiverse[data-state="accepted"] .multiverse__listen {
+.multiverse[data-state="recognized"] .multiverse__listen,
+.multiverse[data-state="bifurcating"] .multiverse__listen,
+.multiverse[data-state="settling"] .multiverse__listen {
   border-color: rgba(var(--violet) / .85);
   color: rgb(var(--violet));
   box-shadow: 0 0 0 1px rgba(var(--violet) / .08), 0 0 22px rgba(115, 91, 238, .22);
@@ -279,12 +280,16 @@ button { font: inherit; }
 
 .multiverse[data-state="listening"] .multiverse__wave,
 .multiverse[data-state="hearing"] .multiverse__wave,
-.multiverse[data-state="accepted"] .multiverse__wave {
+.multiverse[data-state="recognized"] .multiverse__wave,
+.multiverse[data-state="bifurcating"] .multiverse__wave,
+.multiverse[data-state="settling"] .multiverse__wave {
   opacity: 1;
   filter: drop-shadow(0 0 9px rgba(var(--violet) / .44));
 }
 
-.multiverse[data-state="accepted"] .multiverse__token {
+.multiverse[data-state="recognized"] .multiverse__token,
+.multiverse[data-state="bifurcating"] .multiverse__token,
+.multiverse[data-state="settling"] .multiverse__token {
   color: rgba(var(--violet) / .94);
   transform: translateX(0);
 }
