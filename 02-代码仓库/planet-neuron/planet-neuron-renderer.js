@@ -82,26 +82,26 @@
       vec2 livingWarp = vec2(
         sin(sourceUv.y * 21.0 + uTime * 0.17),
         cos(sourceUv.x * 17.0 - uTime * 0.12)
-      ) * depth * slowField * 0.00042;
+      ) * depth * slowField * 0.00062;
       vec2 pointerWarp = -normalize(pointerDelta + vec2(0.00001)) * pointerField * (0.0018 + uDwell * 0.0018);
       vec2 warpedUv = clamp(sourceUv + livingWarp + pointerWarp, 0.0, 1.0);
 
       vec3 color = texture(uSource, warpedUv).rgb * mix(0.78, 0.91, uReveal);
       vec4 planet = texture(uPlanet, warpedUv);
       vec4 surface = texture(uSurface, warpedUv + livingWarp * 1.8);
-      vec4 outer = texture(uOuter, sourceUv + vec2(slowField, -slowField) * 0.00022);
+      vec4 outer = texture(uOuter, sourceUv + vec2(slowField, -slowField) * 0.00032);
 
       float flowA = pulseBand(sourceUv.x * 1.9 + sourceUv.y * 0.61 - uTime * 0.030 + sin(sourceUv.y * 18.0) * 0.045, 0.5, 0.032);
       float flowB = pulseBand(sourceUv.y * 1.7 - sourceUv.x * 0.38 - uTime * 0.019 + sin(sourceUv.x * 14.0) * 0.038, 0.5, 0.026);
-      float idleSignal = max(flowA * 0.64, flowB * 0.44) * activity * planetMask;
+      float idleSignal = max(flowA * 0.72, flowB * 0.52) * activity * planetMask;
 
       float outerFlow = pulseBand(sourceUv.x * 1.14 - sourceUv.y * 0.35 - uTime * 0.010, 0.5, 0.018);
-      float outerLife = outer.a * (0.035 + outerFlow * 0.18 + uReveal * 0.07);
+      float outerLife = outer.a * (0.045 + outerFlow * 0.25 + uReveal * 0.09);
       color += outer.rgb * outerLife * 0.68;
 
-      float localGather = pointerField * activity * (0.45 + uDwell * 0.92);
-      color += surface.rgb * surface.a * (idleSignal * 1.34 + localGather * 1.36);
-      color += planet.rgb * planet.a * pointerField * 0.045;
+      float localGather = pointerField * activity * (0.50 + uDwell * 1.08);
+      color += surface.rgb * surface.a * (idleSignal * 1.48 + localGather * 1.62);
+      color += planet.rgb * planet.a * pointerField * 0.030;
 
       float signalGlow = 0.0;
       if (uSignal >= 0.0) {
@@ -109,9 +109,9 @@
         signalDelta.x *= uSourceAspect;
         float radialDistance = length(signalDelta);
         float radialFront = uSignal * 0.27;
-        float surfaceFront = exp(-pow((radialDistance - radialFront) / 0.012, 2.0));
+        float surfaceFront = exp(-pow((radialDistance - radialFront) / 0.010, 2.0));
         surfaceFront *= activity * planetMask * (1.0 - smoothstep(0.0, 0.82, uSignal));
-        color += surface.rgb * surface.a * surfaceFront * 2.4;
+        color += surface.rgb * surface.a * surfaceFront * 2.8;
 
         vec2 p0 = vec2(0.6178, 0.5271);
         vec2 p1 = vec2(0.7117, 0.5027);
@@ -129,9 +129,9 @@
         float outgoing = clamp((uSignal - 0.28) / 0.72, 0.0, 1.0);
         float headWindow = 1.0 - smoothstep(0.0, 0.011, abs(pathPosition - outgoing));
         float tailWindow = smoothstep(outgoing - 0.22, outgoing - 0.06, pathPosition) * (1.0 - smoothstep(outgoing, outgoing + 0.018, pathPosition));
-        float lineCore = 1.0 - smoothstep(0.0010, 0.0048, distanceToPath);
+        float lineCore = 1.0 - smoothstep(0.0008, 0.0052, distanceToPath);
         signalGlow = lineCore * max(headWindow, tailWindow * 0.54);
-        color += vec3(0.91, 0.72, 1.0) * signalGlow * 1.24;
+        color += vec3(0.91, 0.72, 1.0) * signalGlow * 1.55;
       }
 
       float eventLight = 0.0;
@@ -146,12 +146,12 @@
           if (kind < 1.5) {
             float bloom = sin(age * 3.14159265) * exp(-eventDistance * eventDistance * 820.0);
             float ring = (1.0 - smoothstep(0.002, 0.012, abs(eventDistance - age * 0.075))) * (1.0 - age);
-            eventLight += (bloom * 0.82 + ring * 0.32) * (0.12 + activity * 0.88);
+            eventLight += (bloom * 1.18 + ring * 0.44) * (0.03 + activity * 0.97);
           } else {
             float collapse = (1.0 - smoothstep(0.002, 0.012, abs(eventDistance - (1.0 - age) * 0.055))) * (1.0 - age);
             float scar = exp(-eventDistance * eventDistance * 1300.0) * smoothstep(0.22, 0.5, age) * (1.0 - smoothstep(0.68, 1.0, age));
-            eventLight += collapse * 0.26 * (0.08 + activity * 0.92);
-            eventDark += scar * 0.64 * activity;
+            eventLight += collapse * 0.34 * (0.03 + activity * 0.97);
+            eventDark += scar * 0.78 * activity;
           }
         }
       }
@@ -161,7 +161,7 @@
 
       float triggerCompression = uDwell > 0.82 ? smoothstep(0.82, 1.0, uDwell) * exp(-dot(pointerDelta, pointerDelta) * 720.0) : 0.0;
       color *= 1.0 - triggerCompression * 0.32;
-      color += vec3(0.82, 0.61, 1.0) * pointerField * (0.018 + uDwell * 0.045);
+      color += vec3(0.82, 0.61, 1.0) * pointerField * (0.012 + uDwell * 0.024);
 
       float vignette = smoothstep(1.05, 0.2, length((vUv - 0.5) * vec2(1.05, 0.92)));
       color *= mix(0.7, 1.0, vignette);
@@ -202,8 +202,8 @@
       ]);
 
       const files = [
-        "source.png", "planet-layer.png", "surface-network-layer.png", "outer-fibers-layer.png",
-        "planet-mask.png", "activity-map.png", "depth-map.png",
+        "source-enhanced@2x.png", "planet-layer@2x.png", "surface-network-layer@2x.png", "outer-fibers-layer@2x.png",
+        "planet-mask@2x.png", "activity-map@2x.png", "depth-map@2x.png",
       ];
       const images = await Promise.all(files.map((file) => this.loadImage(`${assetRoot}/${file}`)));
       this.textures = images.map((image) => this.createTexture(image));
