@@ -241,32 +241,37 @@ const state = {
 };
 
 for (let index = 0; index < 8; index += 1) {
-  soundscape.lastControlAt = 0;
+  soundscape.lastControlAt = -Infinity;
   soundscape.update(state, 1 / 60);
 }
 const activeState = soundscape.getState();
 assert.ok(activeState.telemetry.level > 0);
-assert.equal(activeState.architecture, 'sparse-low-frequency-presence');
-assert.ok(activeState.telemetry.presence > 0 && activeState.telemetry.presence < 0.003);
+assert.equal(activeState.architecture, 'interaction-led-shared-bus');
+assert.equal(activeState.telemetry.presence, 0, 'idle ambience is silent');
 assert.ok(activeState.telemetry.movement > 0);
 assert.ok(activeState.telemetry.focus > 0.6);
 assert.ok(activeState.telemetry.events > 0, 'notice is emitted as a bounded event');
 assert.ok(soundscape.nodes.movementFilter.frequency.value < 260);
 assert.ok(soundscape.nodes.focusFilter.frequency.value < 680);
-assert.ok(soundscape.nodes.presenceGain.gain.value < 0.003, 'the presence floor yields to notice');
+assert.equal(soundscape.nodes.presenceGain.gain.value, 0, 'no autonomous presence floor remains');
 assert.ok(soundscape.nodes.presenceUpper.frequency.value >= 90);
 assert.ok(Number(toggle.dataset.soundLevel) > 0);
-assert.ok(Number(toggle.dataset.presenceLevel) < 0.003);
+assert.equal(Number(toggle.dataset.presenceLevel), 0);
 
-soundscape.duckUntil = 0;
+soundscape.setProfile('plant');
+soundscape.activeEvents.length = 0;
 for (let index = 0; index < 8; index += 1) {
-  soundscape.lastControlAt = 0;
-  soundscape.update(state, 1 / 60);
+  soundscape.lastControlAt = -Infinity;
+  soundscape.updatePlant({
+    pointer: { x: 520, y: 440, speed: 640 },
+    interaction: { hovering: true, hover: 0.8 },
+  });
 }
-const recoveredPresence = soundscape.getState().telemetry.presence;
-assert.ok(recoveredPresence >= 0.006, 'the audible narrow-band floor returns after notice');
-assert.ok(soundscape.nodes.presenceGain.gain.value >= 0.006);
-assert.ok(Number(toggle.dataset.presenceLevel) >= 0.006);
+assert.equal(soundscape.getState().profile, 'plant');
+assert.ok(soundscape.getState().telemetry.movement > 0, 'plant sound follows pointer movement');
+assert.equal(soundscape.getState().telemetry.presence, 0);
+soundscape.triggerPlantPulse('root', 0.8, -0.2);
+assert.ok(soundscape.activeEvents.some((event) => event.kind === 'plant-root'));
 
 await documentListeners.get('keydown')({
   key: 'm',
@@ -282,9 +287,10 @@ assert.equal(storage.get('human-unknown:sound-enabled'), 'off');
 
 const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(html, /id="soundToggle"/);
+assert.match(html, /id="worldSoundToggle"/);
 assert.match(html, /id="soundPrompt"/);
 assert.match(html, /data-sound-state="armed"/);
-assert.match(html, /living-soundscape\.js\?v=4\.5\.3-rc\.1/);
+assert.match(html, /living-soundscape\.js\?v=interaction-sound-0\.1\.0-rc\.1/);
 assert.match(html, /assets\/tabler-volume\.svg/);
 
 const appSource = await fs.readFile(new URL('../app.js', import.meta.url), 'utf8');
@@ -294,10 +300,11 @@ assert.match(appSource, /soundscape \? soundscape\.getState\(\) : null/);
 
 assert.doesNotMatch(source, /createNoiseBuffer|createBufferSource|airNoise|worldNoise/);
 assert.doesNotMatch(source, /2240|3900|DynamicsCompressor|metabolismBus/);
-assert.match(source, /randomBetween\(36\.5, 52\.5\)/);
-assert.match(source, /base \* ratio/);
+assert.doesNotMatch(source, /schedulePressure|triggerPressure/);
 assert.match(source, /safeStoredPreference\(\) !== 'off'/);
-assert.match(source, /randomBetween\(5000, 9000\)/);
+assert.match(source, /updatePlant\(state = \{\}\)/);
+assert.match(source, /triggerPlantPulse\(/);
+assert.match(source, /activeEvents\.length >= 2/);
 assert.match(source, /triggerEnableCue\(\)/);
 assert.match(source, /soundState === 'starting'/);
 

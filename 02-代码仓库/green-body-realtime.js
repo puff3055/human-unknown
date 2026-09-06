@@ -26,7 +26,17 @@
     startedAt: 0,
     lastFrame: performance.now(),
     entrance: 0,
-    pointer: { x: innerWidth / 2, y: innerHeight / 2, visible: false },
+    pointer: {
+      x: innerWidth / 2,
+      y: innerHeight / 2,
+      previousX: innerWidth / 2,
+      previousY: innerHeight / 2,
+      lastEventAt: 0,
+      lastMovedAt: 0,
+      eventSpeed: 0,
+      speed: 0,
+      visible: false,
+    },
     hoveredNode: null,
     nodes: [],
     nodesByKey: new Map(),
@@ -415,7 +425,7 @@
     root.dispatchEvent(new CustomEvent('greenbody:arrival', { detail }));
     canvas.dataset.lastArrival = node.organ;
     node.lastResponseAt = now;
-    if (soundscape) {
+    if (soundscape && cascade.source === 'user') {
       const kind = node.tissue === 'root' ? 'root' : node.tissue === 'mycelium' ? 'flow' : 'signal';
       soundscape.pulse(kind, clamp(intensity, .35, 1), clamp(detail.x * 2 - 1, -.72, .72));
     }
@@ -462,6 +472,7 @@
       reachedPlants: new Set(node.plant >= 0 ? [node.plant] : []),
       reachedOrgans: new Set(),
       visitedEdges: new Set(),
+      source: sourceKind,
     };
     state.cascades.set(cascade.id, cascade);
     node.activation = 1;
@@ -780,6 +791,10 @@
     if (state.active) {
       drawNetwork(now);
       if (soundscape) {
+        const idleFor = state.pointer.lastMovedAt ? now - state.pointer.lastMovedAt : Infinity;
+        state.pointer.speed = idleFor < 90
+          ? state.pointer.eventSpeed
+          : state.pointer.eventSpeed * Math.exp(-(idleFor - 90) / 420);
         const scene = state.phase === 'arrival' ? 1
           : state.phase === 'chapter' ? 2
             : state.phase === 'local' ? 3
@@ -788,11 +803,14 @@
         soundscape.setScene(scene);
         soundscape.update({
           scene,
-          progress: {
-            growth: clamp(state.reveal, 0, 1),
-            response: clamp(state.organArrivalCount / 8, 0, 1),
-            descent: state.entryLanded ? 1 : 0,
-            flow: clamp((state.pulses.length + state.pulseQueue.length) / 48, 0, 1),
+          pointer: {
+            x: state.pointer.x,
+            y: state.pointer.y,
+            speed: state.pointer.speed,
+          },
+          interaction: {
+            hovering: Boolean(state.hoveredNode),
+            hover: state.hoveredNode ? clamp(state.hoveredNode.activation / .38, 0, 1) : 0,
           },
         });
       }
@@ -891,10 +909,8 @@
     setPhase('arrival');
     root.classList.add('is-visible');
     resize();
-    const homeSound = window.__humanUnknown?.getState?.().sound;
     if (soundscape) {
       soundscape.setActive(true);
-      soundscape.setEnabled(Boolean(homeSound?.enabled && homeSound?.activated));
     }
     const target = getNodeScreenPosition(state.entryNodeKey);
     root.dispatchEvent(new CustomEvent('greenbody:entry', {
@@ -937,8 +953,23 @@
   }
 
   addEventListener('pointermove', (event) => {
+    const now = performance.now();
+    const deltaSeconds = state.pointer.lastEventAt
+      ? clamp((now - state.pointer.lastEventAt) / 1000, .008, .08)
+      : .016;
+    const distance = Math.hypot(
+      event.clientX - state.pointer.previousX,
+      event.clientY - state.pointer.previousY
+    );
     state.pointer.x = event.clientX;
     state.pointer.y = event.clientY;
+    state.pointer.previousX = event.clientX;
+    state.pointer.previousY = event.clientY;
+    state.pointer.lastEventAt = now;
+    if (distance > .35) {
+      state.pointer.lastMovedAt = now;
+      state.pointer.eventSpeed = distance / deltaSeconds;
+    }
     state.pointer.visible = true;
     cursor.style.setProperty('--cursor-x', `${event.clientX}px`);
     cursor.style.setProperty('--cursor-y', `${event.clientY}px`);
@@ -954,7 +985,7 @@
     cursor.classList.remove('is-visible');
   });
   addEventListener('pointerdown', (event) => {
-    if (!state.active || event.target === returnButton) return;
+    if (!state.active || event.target === returnButton || event.target.closest?.('#worldSoundToggle')) return;
     if (state.phase !== 'local' && state.phase !== 'network' && state.phase !== 'whole') return;
     const node = nearestNode(event.clientX, event.clientY, false);
     ignite(node, { x: event.clientX, y: event.clientY }, { source: 'user' });

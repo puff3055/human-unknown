@@ -17,6 +17,20 @@ body.world-one-active { overflow: hidden; cursor: none; }
 .world-one__chrome button { pointer-events: auto; cursor: pointer; }
 .world-one__chrome button:focus-visible { outline: 1px solid rgba(255,255,255,.65); outline-offset: 8px; }
 .world-one__chrome span { border-bottom: 1px solid rgba(255,255,255,.55); padding-bottom: 7px; }
+.world-one__sound-toggle {
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+}
+.world-one.is-visible .world-one__sound-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.world-one__sound-toggle:hover,
+.world-one__sound-toggle:focus-visible,
+.world-one__sound-toggle.is-on {
+  opacity: .82;
+}
 .world-one__copy { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .world-one__beat { position: absolute; top: 43%; left: 6.1%; max-width: 440px; opacity: 0; transform: translate3d(0, 10px, 0); transition: opacity 900ms ease, transform 1100ms cubic-bezier(.2,.65,.2,1); }
 .world-one__beat.is-visible { opacity: 1; transform: none; }

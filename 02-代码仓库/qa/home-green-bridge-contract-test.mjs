@@ -7,18 +7,20 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const read = (name) => readFile(path.join(root, name), 'utf8');
 
-const [html, app, journey, green, living, css] = await Promise.all([
+const [html, app, journey, green, living, css, worldSound] = await Promise.all([
   read('index.html'),
   read('app.js'),
   read('journey-controller.js'),
   read('green-body-realtime.js'),
   read('green-body-living.js'),
   read('green-body-realtime.css'),
+  read('world-one-soundscape.js'),
 ]);
 
 assert.match(html, /id="worldOne"[\s\S]*id="journeyBridge"/);
 assert.match(html, /id="journeyCarrier"[\s\S]*cursor-light-point\.png/);
 assert.match(html, /green-body-realtime\.js[\s\S]*journey-controller\.js[\s\S]*app\.js/);
+assert.match(html, /id="worldSoundToggle"[\s\S]*data-sound-control="global"/);
 
 assert.match(app, /humanunknown:homepage-exit/);
 assert.match(journey, /const ENTRY_NODE = 'spore-center-low'/);
@@ -36,6 +38,8 @@ assert.match(green, /getNodeScreenPosition,/);
 assert.match(green, /greenbody:entry/);
 assert.match(green, /greenbody:arrival/);
 assert.match(green, /greenbody:complete/);
+assert.match(green, /cascade\.source === 'user'/);
+assert.match(green, /soundscape\.update\(\{[\s\S]*pointer:[\s\S]*interaction:/);
 assert.doesNotMatch(green, /function updateEntrance/);
 assert.doesNotMatch(green, /requestAnimationFrame\(updateEntrance\)/);
 assert.match(living, /root\.dataset\.active !== 'true'[\s\S]*canvas\.dataset\.paused = 'true'/);
@@ -44,5 +48,9 @@ assert.match(css, /\.world-one \{[^}]*background: #020502/);
 assert.match(css, /\.contact\.is-world-hidden/);
 assert.match(css, /\.journey-bridge__carrier/);
 assert.doesNotMatch(css, /\.world-one \{[^}]*transition: opacity/);
+assert.match(css, /\.world-one\.is-visible \.world-one__sound-toggle/);
+assert.match(worldSound, /window\.__humanUnknownSound/);
+assert.match(worldSound, /interaction-led-shared-bus/);
+assert.doesNotMatch(worldSound, /AudioContext|createNoiseBuffer|createOscillator/);
 
 console.log('home → green body bridge contract: passed');
