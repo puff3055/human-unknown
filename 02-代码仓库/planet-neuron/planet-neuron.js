@@ -38,6 +38,8 @@
     lastMoveAt: 0,
     energy: 0,
     movedSinceTrigger: true,
+    view: { x: 0, y: 0 },
+    viewTarget: { x: 0, y: 0 },
   };
 
   const state = {
@@ -80,12 +82,16 @@
     pointer.active = true;
     pointer.source = renderer.screenToSource(event.clientX, event.clientY);
     pointer.overPlanet = renderer.isOverPlanet(pointer.source);
+    pointer.viewTarget.x = (event.clientX / window.innerWidth - 0.5) * 2;
+    pointer.viewTarget.y = (0.5 - event.clientY / window.innerHeight) * 2;
   }
 
   function leaveWorld() {
     pointer.active = false;
     pointer.overPlanet = false;
     pointer.speed = 0;
+    pointer.viewTarget.x = 0;
+    pointer.viewTarget.y = 0;
   }
 
   function canCharge(now) {
@@ -135,6 +141,8 @@
     const speedCalm = 1 - clamp(pointer.speed / 950);
     const targetEnergy = pointer.active && pointer.overPlanet ? 0.42 + speedCalm * 0.58 : 0;
     pointer.energy += (targetEnergy - pointer.energy) * clamp(delta / 150);
+    pointer.view.x += (pointer.viewTarget.x - pointer.view.x) * clamp(delta / 240);
+    pointer.view.y += (pointer.viewTarget.y - pointer.view.y) * clamp(delta / 240);
 
     if (canCharge(now) && pointer.overPlanet && (motionAge > 110 || pointer.speed < 90)) {
       state.dwell = clamp(state.dwell + delta / DWELL_MS);
@@ -181,6 +189,7 @@
     }
 
     renderer.setPointer(pointer.source, pointer.energy);
+    renderer.setParallax(pointer.view);
     renderer.setDwell(state.dwell);
     sound.setPointerEnergy(pointer.energy * (0.45 + state.dwell * 0.55));
     progressBar.style.transform = `scaleX(${state.dwell})`;
