@@ -1,10 +1,10 @@
 # HUMAN UNKNOWN｜代码入口
 
-> **当前汇合候选：V4.5.3 首页／第一次接触 → 世界 1「THE GREEN BODY／群体生命」单页实时网络。**
+> **当前汇合候选：V4.5.3 首页／第一次接触 → 世界 1「THE GREEN BODY／群体生命」→ 世界 2「RECURSIVE COSMOS／递归宇宙」→ 世界 3「EYE MULTIVERSE／多重宇宙」。**
 
 开始代码任务前先阅读根目录 [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)。它记录当前分支、标签、已实现能力和验收缺口；不要仅凭文件更新时间判断版本。
 
-下面的“当前运行入口”描述 `codex/green-body-narrative`／`green-body-narrative-v0.2.0-rc.1`。上一叙事回退点是 `green-body-narrative-v0.1.0-rc.1`；受保护的来源仍是 V4.5.3 首页 `e894154` 和世界 1 实时网络 `968af59`。
+下面的“当前运行入口”描述 `codex/full-journey-v1`／`full-journey-v0.1.0-rc.1`。三个世界的来源分支与标签仍各自保留，整合没有改写它们。
 
 ## 当前运行入口
 
@@ -22,11 +22,17 @@
 - `green-body-living.js`：基于世界 1 母版的实时生命纹理。
 - `green-body-realtime.css`：世界 1 与跨世界光点的舞台、文字和动效样式。
 - `world-one-soundscape.js`：只在世界 1 激活后运行的章节声场。
+- `journey-transition.js/css`：世界 1 → 世界 2、世界 2 → 世界 3 的统一深色纵深转场；通过 `sessionStorage` 将同向载体状态交给目标页。
+- `journey-ledger.json`：两处跨页切口的运动轴、方向和载体记录。
+- `planet-neuron/index.html`：第二章独立入口；其 CSS、渲染器、声音与交互控制器均在同目录。
+- `eye-multiverse.html`：第三章独立入口；`eye-multiverse.js/css` 驱动声音分岔与眼睛世界。
 - `../design-qa.md`：当前叙事 UI 的参考图对照、浏览器验收与最终结果；本目录内旧 `design-qa.md` 保留历史光标 QA。
 - `qa/homepage-v4-contract-test.mjs`：V4 可执行交互状态机契约。
 - `qa/soundscape-contract-test.mjs`：V4 声音图与开关契约。
 - `qa/light-cursor-contract-test.mjs`：光标双形态、跟手、惯性、按压、吸收、素材和 reduced-motion 契约。
 - `qa/home-green-bridge-contract-test.mjs`：单一光点、一次硬切、真实目标节点和跨页面事件契约。
+- `qa/full-journey-contract-test.mjs`：三世界顺序、跨页目标、转场方向、声音继承与运行资源契约。
+- `qa/full-journey-v0.1/`：四页与两个切口的真实浏览器截图证据。
 - `qa/home-green-bridge/`：本次完整桌面链路、状态数据和回退基线记录。
 - `qa/v4.3/`：当前光标参考对比、默认／交互／吸收／黑场证据。
 - `qa/v4.2/`：光标替换前的桌面、移动、旁白门控、凝视倒计时、单向坠入与 reduced-motion 历史证据。
@@ -37,4 +43,4 @@
 - `archive/`：已退出当前产品路线的代码实验。
 - `sketch/`：草图或开发辅助内容，除非任务明确需要，否则不作为产品入口。
 
-后续世界仍是独立候选，尚未接入当前入口。新增章节时，不要把旧实验代码因为“已经存在”就自动接回页面；先确定上一章出口、下一章入口和单一连续载体，再在独立分支汇合。
+新增章节时，不要把旧实验代码因为“已经存在”就自动接回页面；先确定上一章出口、下一章入口和单一连续载体，再在独立分支汇合。
