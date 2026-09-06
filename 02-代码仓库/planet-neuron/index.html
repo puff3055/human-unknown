@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#020405" />
     <title>SCALE UNKNOWN | HUMAN UNKNOWN</title>
-    <link rel="stylesheet" href="./planet-neuron.css" />
+    <link rel="stylesheet" href="./planet-neuron.css?v=20260906-scale" />
   </head>
   <body>
     <main class="world" data-world data-phase="loading" aria-label="尺度的未知：行星神经元互动世界">
@@ -23,9 +23,32 @@
         <span data-sound-label>SOUND OFF</span>
       </button>
 
+      <aside class="scale-control" data-scale-control aria-label="观察距离">
+        <button class="scale-control__endpoint scale-control__endpoint--near" type="button" data-scale-step="near">
+          <span>靠近</span><b aria-hidden="true">＋</b>
+        </button>
+        <div class="scale-control__rail-wrap">
+          <span class="scale-control__rail" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <input
+            class="scale-control__input"
+            data-scale-input
+            type="range"
+            min="-1.8"
+            max="5.8"
+            step="0.001"
+            value="0"
+            aria-label="拖动改变观察距离"
+          />
+          <output class="scale-control__value" data-scale-value>尺度 01</output>
+        </div>
+        <button class="scale-control__endpoint scale-control__endpoint--far" type="button" data-scale-step="far">
+          <span>远离</span><b aria-hidden="true">－</b>
+        </button>
+      </aside>
+
       <section class="world__copy" aria-live="polite">
         <p class="world__premise" data-premise>你以为那是一颗行星。</p>
-        <p class="world__prompt" data-prompt>滚动改变距离。点击任意球体，注入一次信号。</p>
+        <p class="world__prompt" data-prompt>拖动右侧尺度，或滚动改变距离。点击球体，注入一次信号。</p>
         <p class="world__reveal" data-reveal></p>
       </section>
 
@@ -35,6 +58,6 @@
 
     <script src="./planet-neuron-renderer.js"></script>
     <script src="./planet-neuron-sound.js"></script>
-    <script src="./planet-neuron.js"></script>
+    <script src="./planet-neuron.js?v=20260906-scale"></script>
   </body>
 </html>
